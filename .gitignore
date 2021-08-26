@@ -6,6 +6,15 @@ __pycache__/
 # C extensions
 *.so
 
+# Personal settings
+*.*
+Notes/
+!*.py
+!*.sh
+!todo.md
+!todo.txt
+
+
 # Distribution / packaging
 .Python
 build/
