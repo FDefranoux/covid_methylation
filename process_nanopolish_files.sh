@@ -1,17 +1,14 @@
-filenames_file="retest.txt"
 outputdir=output
-
-file_str="${LSB_JOBINDEX}p"
-fileselect="sed -n $file_str ${filenames_file}"
-filename=$($fileselect)
+filename=$1
+sed=$2
 
 fbname=$(basename $filename)
-outfile=${outputdir}/${fbname}
+outfile='new_'${fbname}
 
 echo ${filename} > /dev/stderr
 echo ${filename} '-->' ${outfile}
 
-gunzip -c ${filename} | grep -v MT | grep -v GL | grep -v KI | sed s'/X/23/' | sed s'/Y/24/' | sort -n -k 1 -k 3 -k 4 -T /nfs/research/birney/users/fanny/Covid/temp | /hps/software/users/birney/tomas/tabix/tabix-0.2.6/bgzip -c > ${outfile}.temp
+gunzip -c ${filename} | grep -v MT | grep -v GL | grep -v KI | sed s'/X/23/' | sed s'/Y/24/' | sed $sed | sort -n -k 1 -k 3 -k 4 -T /nfs/research/birney/users/fanny/Covid/temp | /hps/software/users/birney/tomas/tabix/tabix-0.2.6/bgzip -c > ${outfile}.temp
 
 echo 'sorting done'
 
