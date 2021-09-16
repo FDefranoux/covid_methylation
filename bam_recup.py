@@ -5,7 +5,8 @@ import sys
 
 
 # Variable definition
-file_list = os.listdir('bams')[:-1]
+file_list = ['bams/gcc13846.bam']
+print(file_list)
 hits_table = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
 output_name = 'Bam_test.csv'
 
@@ -28,11 +29,12 @@ def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
     df_final = pd.DataFrame(columns=cols)
     error_files[file] = []
     try:
-        tbx = pysam.TabixFile(file)
+        bam = pysam.AlignmentFile(file)
+        print(type(bram.header))
         for n, region_n in enumerate(list_region):
             try:
-                rows_n = [x for x in tbx.fetch(*region_n)]
-                row_array = [r.split('\t') for r in rows_n]
+                rows_n = [x for x in bam.fetch(*region_n)]
+                row_array = [str(r).split('\t') for r in rows_n]
                 df_reg = pd.DataFrame(row_array, columns=cols)
                 df_reg['region'] = str(region_n)
                 df_final = pd.concat([df_final, df_reg], axis=0)
@@ -41,7 +43,7 @@ def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
                 error_files[file].append(f'Error with {region_n}\n{err}')
 
     except OSError:
-        error_files[file] = f'{file}.tbi not found\n'
+        error_files[file] = f'{file} or its index not found\n'
     return df_final[df_final.duplicated() == False]
 
 
@@ -52,12 +54,13 @@ def main(file_list, hits_table):
         os.remove(output_name)
 
     # Reading the tables
-    file_ls = pd.read_table(file_list, header=0).iloc[:, 0].tolist()
+    # file_ls = pd.read_table(file_list, header=0).iloc[:, 0].tolist()
     hits_df = pd.read_table(hits_table)
 
     list_region = set(region_select_fromSNP(hits_df[['#CHR', 'POS']]).values)
+    print(list_region)
     error_files = {}
-    for file in file_ls:
+    for file in file_list:
         print(file)
         error_files[file] = []
         # print(pd.read_table(file, sep='\t', nrows=1).columns.tolist() == cols)
@@ -65,7 +68,7 @@ def main(file_list, hits_table):
             list_region, file, error_files, cols=None)
         print(df_final.head(5))
 
-        if file == file_ls[0]:
+        if file == file_list[0]:
             df_final.to_csv(output_name, mode='a',
                             header=True, index=False)
         else:
@@ -76,3 +79,7 @@ def main(file_list, hits_table):
     print([(file, err) for (file, err) in zip(
         error_files.keys(), error_files.values()) if err != []],
          file=sys.stderr)
+
+
+if __name__ == '__main__':
+    main(file_list, hits_table)
