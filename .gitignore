@@ -5,4 +5,9 @@
 !*.sh
 !todo.*
 .pytest_cache/
-
+*.tsv
+*.tsv.*
+*.gz.*
+*.gz
+*/*
+Notes.md
