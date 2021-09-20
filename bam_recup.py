@@ -10,8 +10,9 @@ hits_table = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
 output_name = 'Bam_test.csv'
 
 
-def region_select_fromSNP(pos_df):
-    pos_df = hits_df[['#CHR', 'POS']].copy()
+def region_select_fromSNP_large(pos_df):
+    # SEE how to implement this correctly and usefully
+    # TODO: Assignement of SNP for each region
     pos_df = pos_df.astype(int).copy()
     pos_df['new_POS'] = (pos_df['POS'] - 11).astype(str).str[:-6]
     pos_df['POS_end'] = (pos_df['new_POS'].astype(int) + 1) * 1000000
@@ -22,7 +23,17 @@ def region_select_fromSNP(pos_df):
     pos_df.set_index('POS', inplace=True)
     pos_df['tuple'] = pos_df.set_index(
         ['#CHR', 'new_POS', 'POS_end']).index.tolist()
-    return pos_df['tuple'].to_dict()
+    return pos_df[['tuple', 'POS']].set_index('tuple')
+
+
+def region_select_fromSNP(pos_df):
+    pos_df = pos_df.astype(int).copy()
+    pos_df['new_POS'] = (pos_df['POS'] - 1)
+    pos_df['POS_end'] = (pos_df['POS'] + 1)
+    pos_df['#CHR'] = pos_df['#CHR'].astype(str)
+    pos_df['tuple'] = pos_df.set_index(
+        ['#CHR', 'new_POS', 'POS_end']).index.tolist()
+    return pos_df[['tuple', 'POS']].set_index('tuple')
 
 
 def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
@@ -39,7 +50,7 @@ def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
                 rows_n = [x for x in bam.fetch(*region_n)]
                 row_array = [str(r).split('\t') for r in rows_n]
                 df_reg = pd.DataFrame(row_array, columns=cols)
-                df_reg['region'] = str(region_n)
+                df_reg['SNP'] = str(region_n)
                 df_final = pd.concat([df_final, df_reg], axis=0)
 
             except Exception as err:
@@ -48,7 +59,7 @@ def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
     except OSError:
         error_files[file] = f'{file} or its index not found\n'
     return df_final.loc[df_final.duplicated() == False, [
-        'QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'SEQ', 'region']], ref_namelenght
+        'QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'SEQ', 'SNP']], ref_namelenght
 
 
 def main(file_list, hits_table):
@@ -61,7 +72,9 @@ def main(file_list, hits_table):
     # file_ls = pd.read_table(file_list, header=0).iloc[:, 0].tolist()
     hits_df = pd.read_table(hits_table)
 
-    list_region = set(region_select_fromSNP(hits_df[['#CHR', 'POS']]).values)
+    table_region = set(region_select_fromSNP(hits_df[['#CHR', 'POS']]).values)
+    list_region = table_region.index.to_list()
+
     ref_table = pd.DataFrame()
     error_files = {}
     bam_cols = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ',
@@ -88,12 +101,12 @@ def main(file_list, hits_table):
 if __name__ == '__main__':
     main(file_list, hits_table)
 
-
-## TO DO: function to translate FLAG = 16
-
-bam = pd.read_csv('Bam_test_SEQ.csv')
-bam.head(2)
-# Function to change seq for reverse reads
-trans = "ATGC".maketrans("ATGC", "TACG")
-bam.loc[bam['FLAG'] == 16, ['SEQ']] = bam['SEQ'].str.translate(trans)
-bam.loc[bam['FLAG'] == 16, ['CIGAR']] = bam['CIGAR'][::-1]
+# ## POST-ANALYSIS
+# bam = pd.read_csv('Bam_test_SEQ.csv')
+# bam.head(2)
+# # TODO: Work on the CIGAR sequence to get the right allele
+# # NEED: Reference file!
+# # Function to change seq for reverse reads when FLAG == 16
+# trans = "ATGC".maketrans("ATGC", "TACG")
+# bam.loc[bam['FLAG'] == 16, ['SEQ']] = bam['SEQ'].str.translate(trans)
+# bam.loc[bam['FLAG'] == 16, ['CIGAR']] = bam['CIGAR'][::-1]
