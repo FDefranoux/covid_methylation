@@ -73,7 +73,7 @@ def main(file_list, hits_table):
     hits_df = pd.read_table(hits_table)
 
     table_region = region_select_fromSNP(hits_df[['#CHR', 'POS']])
-    list_region = set(table_region.index).to_list()
+    list_region = set(table_region.index)
 
     ref_table = pd.DataFrame()
     error_files = {}
