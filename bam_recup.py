@@ -50,7 +50,7 @@ def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
                 rows_n = [x for x in bam.fetch(*region_n)]
                 row_array = [str(r).split('\t') for r in rows_n]
                 df_reg = pd.DataFrame(row_array, columns=cols)
-                df_reg['SNP'] = str(region_n)
+                df_reg['region'] = str(region_n)
                 df_final = pd.concat([df_final, df_reg], axis=0)
 
             except Exception as err:
@@ -59,7 +59,7 @@ def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
     except OSError:
         error_files[file] = f'{file} or its index not found\n'
     return df_final.loc[df_final.duplicated() == False, [
-        'QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'CIGAR', 'SEQ', 'SNP']], ref_namelenght
+        'region', 'QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ', 'TLEN', 'SEQ', 'CIGAR']], ref_namelenght
 
 
 def main(file_list, hits_table):
@@ -72,8 +72,8 @@ def main(file_list, hits_table):
     # file_ls = pd.read_table(file_list, header=0).iloc[:, 0].tolist()
     hits_df = pd.read_table(hits_table)
 
-    table_region = set(region_select_fromSNP(hits_df[['#CHR', 'POS']]).values)
-    list_region = table_region.index.to_list()
+    table_region = region_select_fromSNP(hits_df[['#CHR', 'POS']])
+    list_region = set(table_region.index).to_list()
 
     ref_table = pd.DataFrame()
     error_files = {}
