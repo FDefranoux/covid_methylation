@@ -73,7 +73,7 @@ def main(file_list, hits_table):
     hits_df = pd.read_table(hits_table)
 
     table_region = region_select_fromSNP(hits_df[['#CHR', 'POS']])
-    list_region = set(table_region.index).to_list()
+    list_region = set(table_region.index)
 
     ref_table = pd.DataFrame()
     error_files = {}
@@ -100,13 +100,3 @@ def main(file_list, hits_table):
 
 if __name__ == '__main__':
     main(file_list, hits_table)
-
-# ## POST-ANALYSIS
-# bam = pd.read_csv('Bam_test_SEQ.csv')
-# bam.head(2)
-# # TODO: Work on the CIGAR sequence to get the right allele
-# # NEED: Reference file!
-# # Function to change seq for reverse reads when FLAG == 16
-# trans = "ATGC".maketrans("ATGC", "TACG")
-# bam.loc[bam['FLAG'] == 16, ['SEQ']] = bam['SEQ'].str.translate(trans)
-# bam.loc[bam['FLAG'] == 16, ['CIGAR']] = bam['CIGAR'][::-1]
