@@ -9,6 +9,13 @@ print(file_list)
 hits_table = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
 output_name = 'Bam_test.csv'
 
+# TODO: Ajust the generalization and structure of the code
+#   - Function for adding the relevant information in the summary
+#   - Gathering function to create list of region and reading of hits_df
+#       --> relevant info gathered in analysis script
+# TODO: Verification that all RNAMEs are in the header
+# TODO: Adjust function to have larger region selection
+
 
 def region_select_fromSNP_large(pos_df):
     # SEE how to implement this correctly and usefully
@@ -28,12 +35,18 @@ def region_select_fromSNP_large(pos_df):
 
 def region_select_fromSNP(pos_df):
     pos_df = pos_df.astype(int).copy()
+    pos_df['#CHR'] = pos_df['#CHR'].astype(str)
+    # Creating temporary columns
     pos_df['new_POS'] = (pos_df['POS'] - 1)
     pos_df['POS_end'] = (pos_df['POS'] + 1)
-    pos_df['#CHR'] = pos_df['#CHR'].astype(str)
+    # Regions to look up
     pos_df['tuple'] = pos_df.set_index(
-        ['#CHR', 'new_POS', 'POS_end']).index.tolist()
-    return pos_df[['tuple', 'POS']].set_index('tuple')
+        ['#CHR', 'new_POS', 'POS_end']).astype(str).index.tolist()
+    # Concat of CHR and POS as potentiel index
+    pos_df['SNP_POS'] = pos_df['#CHR'] + '_' + pos_df['SNP_POS'].astype(str)
+    # Removing temporary columns
+    pos_df.drop(['new_POS', 'POS_end', 'POS'])
+    return pos_df
 
 
 def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
@@ -50,9 +63,14 @@ def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
                 rows_n = [x for x in bam.fetch(*region_n)]
                 row_array = [str(r).split('\t') for r in rows_n]
                 df_reg = pd.DataFrame(row_array, columns=cols)
+                # Adding
                 df_reg['region'] = str(region_n)
+                df_reg['file'] = file
+                if 'PROM1' in file:
+                    df_reg['Phenotype'] = 'Severe'
+                else:
+                    df_reg['Phenotype'] = 'Moderate'
                 df_final = pd.concat([df_final, df_reg], axis=0)
-
             except Exception as err:
                 error_files[file].append(f'Error with {region_n}\n{err}')
 
@@ -71,12 +89,16 @@ def main(file_list, hits_table):
     # Reading the tables
     # file_ls = pd.read_table(file_list, header=0).iloc[:, 0].tolist()
     hits_df = pd.read_table(hits_table)
-
-    table_region = region_select_fromSNP(hits_df[['#CHR', 'POS']])
-    list_region = set(table_region.index)
+    assert hits_df[hits_df[['#CHR', 'POS']].duplicated(
+        )].empty, 'Chromosome and SNP Position not enough to create unique indexes'
+    table_region = region_select_fromSNP(
+        hits_df[['#CHR', 'POS', 'REF', 'ALT']])
+    list_region = set(table_region['tuple'].astype(str))
+    # Do we need to add info there ?
 
     ref_table = pd.DataFrame()
     error_files = {}
+    # TODO: recuperate column names automatically
     bam_cols = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ',
                 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', '?']
     for file in file_list:
