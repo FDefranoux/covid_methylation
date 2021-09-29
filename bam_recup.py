@@ -1,7 +1,7 @@
 import pandas as pd
 import pysam
 import os
-import sys
+import argparse
 
 # Variable definition
 file_list = 'file_list.txt'
@@ -70,44 +70,41 @@ def region_select_fromSNP(pos_df):
     return pos_df
 
 
-def recup_bam_perregion(file_ls, bam_list, method='',
+def recup_bam_perregion(file_ls, bam_list, method='_',
                         output_names={'datas': 'Bam_summary.csv',
                                       'reference': 'Ref_table.csv'}):
     bam_cols = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ',
                 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', '?']
     df_final = pd.DataFrame()
+    print(method)
     for file in file_ls:
+        print(file)
         bam_file = SamFiles.open(file)
         SamFiles.bam_ref_names(bam_file).to_csv(output_names['reference'],
                                                 mode='a', header=False)
 
-        for region in bam_list:
-            if method == 'bam_regions':
+        if method == 'bam_regions':
+            for region in bam_list:
                 bam_df = SamFiles.sam_iterators(
                     SamFiles.region(bam_file), region, cols=bam_cols)
                 bam_df['SNP_hit'] = region[1] + 1
                 bam_df['file'] = file
                 df_final = pd.concat([df_final, bam_df], axis=0)
 
-<<<<<<< HEAD
-        if method == 'bam_reads':
+        elif method == 'bam_reads':
             name_indexed = pysam.IndexedReads(bam_file)
             name_indexed.build()
+            bam_list = pd.read_table('reads.txt')[0].tolist()
+            print(pd.read_table('reads.txt'))
+            print(bam_list)
             for read in bam_list:
                 bam_df = SamFiles.sam_iterators(
                     name_indexed, SamFiles.reads, read, cols=bam_cols)
+                print(bam_df.head(2))
                 bam_df['file'] = file
                 df_final = pd.concat([df_final, bam_df], axis=0)
-=======
-        # if method == 'bam_reads':
-        #     name_indexed = pysam.IndexedReads(bam_file)
-        #     name_indexed.build()
-        #     for read in bam_list:
-        #         bam_df = SamFiles.sam_iterators(
-        #             name_indexed, SamFiles.reads, read, cols=bam_cols)
-        #         bam_df['file'] = file
-        #         df_final = pd.concat([df_final, bam_df], axis=0)
->>>>>>> effc2f07c6b57dcb9944c862f039e0f42fec2df4
+        else:
+            print('WRONG METHOD')
 
         if file == file_list[0]:
             df_final.to_csv(output_names['datas'], mode='a',
@@ -117,7 +114,7 @@ def recup_bam_perregion(file_ls, bam_list, method='',
                             header=False, index=False)
 
 
-def main(file_list, hits_table):
+def main(file_list, hits_table, output, bam_method='bam_regions'):
     # Remove existing file
     for name in output:
         if name in os.listdir():
@@ -125,18 +122,25 @@ def main(file_list, hits_table):
             os.remove(name)
 
     # Reading Hits table
-    file_ls = pd.read_table(file_list, header=0).iloc[:, 0].tolist()
+    file_ls = pd.read_table(file_list, header=None).iloc[:, 0].tolist()
+    print(file_ls)
     hits_df = pd.read_table(hits_table)
     assert hits_df[hits_df[['#CHR', 'POS']].duplicated(
         )].empty, 'Chromosome and SNP Position not enough to create unique indexes'
     table_region = region_select_fromSNP(
         hits_df[['#CHR', 'POS', 'REF', 'ALT']])
     list_region = set(table_region['tuple'])
-
     # Look up bam files
     recup_bam_perregion(file_ls, list_region,
-                        method='bam_regions', output_names=output)
+                        method=bam_method, output_names=output)
 
 
 if __name__ == '__main__':
-    main(file_list, hits_table)
+
+    parser = argparse.ArgumentParser(description='Recuperation of BAM datas')
+    parser.add_argument('-f', '--file_list', type=str, default=file_list)
+    parser.add_argument('-t', '--hits_table', type=str, default=hits_table)
+    parser.add_argument('-o', '--output', default=output)
+    parser.add_argument('-m', '--bam_method', type=str, default='bam_regions')
+    args = parser.parse_args()
+    main(**vars(args))
