@@ -89,6 +89,7 @@ def recup_bam_perregion(file_ls, bam_list, method='',
                 bam_df['file'] = file
                 df_final = pd.concat([df_final, bam_df], axis=0)
 
+<<<<<<< HEAD
         if method == 'bam_reads':
             name_indexed = pysam.IndexedReads(bam_file)
             name_indexed.build()
@@ -97,6 +98,16 @@ def recup_bam_perregion(file_ls, bam_list, method='',
                     name_indexed, SamFiles.reads, read, cols=bam_cols)
                 bam_df['file'] = file
                 df_final = pd.concat([df_final, bam_df], axis=0)
+=======
+        # if method == 'bam_reads':
+        #     name_indexed = pysam.IndexedReads(bam_file)
+        #     name_indexed.build()
+        #     for read in bam_list:
+        #         bam_df = SamFiles.sam_iterators(
+        #             name_indexed, SamFiles.reads, read, cols=bam_cols)
+        #         bam_df['file'] = file
+        #         df_final = pd.concat([df_final, bam_df], axis=0)
+>>>>>>> effc2f07c6b57dcb9944c862f039e0f42fec2df4
 
         if file == file_list[0]:
             df_final.to_csv(output_names['datas'], mode='a',
