@@ -94,12 +94,11 @@ def recup_bam_perregion(file_ls, bam_list, method='_',
         elif method == 'bam_reads':
             name_indexed = pysam.IndexedReads(bam_file)
             name_indexed.build()
-            bam_list = pd.read_table('reads.txt')[0].tolist()
-            print(pd.read_table('reads.txt'))
+            bam_list = pd.read_table('reads.txt', header=None)[0].tolist()
             print(bam_list)
             for read in bam_list:
                 bam_df = SamFiles.sam_iterators(
-                    name_indexed, SamFiles.reads, read, cols=bam_cols)
+                    SamFiles.reads(name_indexed), [read], cols=bam_cols)
                 print(bam_df.head(2))
                 bam_df['file'] = file
                 df_final = pd.concat([df_final, bam_df], axis=0)
@@ -123,7 +122,6 @@ def main(file_list, hits_table, output, bam_method='bam_regions'):
 
     # Reading Hits table
     file_ls = pd.read_table(file_list, header=None).iloc[:, 0].tolist()
-    print(file_ls)
     hits_df = pd.read_table(hits_table)
     assert hits_df[hits_df[['#CHR', 'POS']].duplicated(
         )].empty, 'Chromosome and SNP Position not enough to create unique indexes'
