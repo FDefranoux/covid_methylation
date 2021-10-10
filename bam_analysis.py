@@ -11,6 +11,9 @@ def count_table(df, t=0.95):
     df.loc[df['Allele'] == df['alt'], 'Gen'] = 'alt'
     table_counts = df.groupby(['name', 'SNP', 'Gen']
                               ).size().unstack(fill_value=0)
+    for haplo in ['ref', 'alt', 'other']:
+        if df[df['Gen'] == haplo].shape[0] == 0:
+            table_counts[haplo] = 0
     sum = table_counts[['alt', 'other', 'ref']].sum(axis=1)
     table_counts['sum'] = sum
     table_counts['alt%'] = table_counts['alt'].astype(int) / sum
