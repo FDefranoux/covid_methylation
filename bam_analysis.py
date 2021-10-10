@@ -24,9 +24,21 @@ def count_table(df, t=0.95):
                      & (table_counts['ref'] < 1 * t), 'Genotype'] = '0/1'
     table_counts.loc[(table_counts['ref'] > 0.5 * t)
                      & (table_counts['alt'] < 1 * t), 'Genotype'] = '0/1'
+
+    table_counts.loc[(table_counts['ref'] > 0.5 * t)
+                     & (table_counts['other'] < 1 * t), 'Genotype'] = '0/2'
+    table_counts.loc[(table_counts['other'] > 0.5 * t)
+                     & (table_counts['ref'] < 1 * t), 'Genotype'] = '0/2'
+
+    table_counts.loc[(table_counts['other'] > 0.5 * t)
+                     & (table_counts['alt'] < 1 * t), 'Genotype'] = '1/2'
+    table_counts.loc[(table_counts['alt'] > 0.5 * t)
+                     & (table_counts['other'] < 1 * t), 'Genotype'] = '1/2'
+
     table_counts.loc[table_counts['ref'] > 1.0 * t, 'Genotype'] = '0/0'
     table_counts.loc[table_counts['alt'] > 1.0 * t, 'Genotype'] = '1/1'
     table_counts.loc[table_counts['other'] > 1.0 * t, 'Genotype'] = '2/2'
+
     return table_counts
 
 
@@ -36,8 +48,7 @@ def main(file_allele):
     df = pd.read_table(file_allele, sep='\t',
                        error_bad_lines=False, header=None)
     df.columns = ['name', 'SNP', 'read_name', 'Allele']
-    df[['chr', 'pos', 'ref', 'alt']] = df['SNP'].str.split(
-            ':', expand=True)
+    df[['CHR', 'pos', 'ref', 'alt']] = df['SNP'].str.split(':', expand=True)
 
     #Getting nanopolish file
     nano_cols = ['CHR', 'strand', 'start', 'end', 'read_name',
@@ -46,11 +57,11 @@ def main(file_allele):
     file_ls = set(df['name'].to_list())
     for file in file_ls:
         try:
-            print(file)
             nano_file = os.path.join('nanopolish_grep_reads', file + '.txt')
             nano_df = pd.read_table(nano_file, header=None, names=nano_cols)
+            df['CHR'] = df['CHR'].astype(int)
             nano_all = pd.merge(
-                nano_df, df[df['name'] == file], on='read_name')
+                nano_df, df[df['name'] == file], on=['read_name', 'CHR'])
             nano_all[['pos', 'start', 'end']] = nano_all[[
                 'pos', 'start', 'end']].astype(int)
             nano_all = nano_all[(nano_all['pos'] < nano_all['start']-5)
@@ -69,6 +80,7 @@ def main(file_allele):
 
 if __name__ == '__main__':
     main(file_allele)
+
 
 # # Graphs
 # blou = df_global[df_global != 0]
