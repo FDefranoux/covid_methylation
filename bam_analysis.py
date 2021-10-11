@@ -38,10 +38,6 @@ def count_table(df, t=0.95):
     table_counts.loc[table_counts['ref%'] > 1.0 * t, 'Genotype'] = '0/0'
     table_counts.loc[table_counts['alt%'] > 1.0 * t, 'Genotype'] = '1/1'
     table_counts.loc[table_counts['other%'] > 1.0 * t, 'Genotype'] = '2/2'
-<<<<<<< HEAD
-=======
-
->>>>>>> 52d82ce6695167b6f378566d68fc4fe8f7123dd2
 
     return table_counts
 
