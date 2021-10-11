@@ -28,8 +28,9 @@ def count_table(df, t=0.90):
         percent.loc[(percent.max(axis=1) == percent.min(axis=1))
                     & (percent[col] == percent.max(axis=1))
                     & (percent['Allele2'].isna()), 'Allele2'] = col
-    alleles = percent[['Allele1', 'Allele2']].astype(int).astype(str).copy()
-    percent['Genotype'] = alleles.min(axis=1) + '/' + alleles.max(axis=1)
+    alleles = percent[['Allele1', 'Allele2']].astype(int).copy()
+    percent['Genotype'] = alleles.min(axis=1).astype(
+        str) + '/' + alleles.max(axis=1).astype(str)
     return percent['Genotype'].reset_index()
 
 
@@ -54,7 +55,7 @@ def main(file_allele):
                  'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
                  'num_calling_strands', 'num_motifs', 'sequence']
     file_ls = set(df['name'].to_list())
-    file = 'gcc00022_PROM1'
+    file_ls = ['gcc00022_PROM1']
     for file in file_ls:
         try:
             nano_file = os.path.join('nanopolish_grep_reads', file + '.txt')
@@ -76,7 +77,14 @@ def main(file_allele):
             merge.to_csv(os.path.join('nanopolish_grep_reads',
                                       file + '_genotyped.csv'), index=False)
         except Exception as err:
-            print(file, err)
+            # print(file, err)
+            try:
+                print('nano_df\n', nano_df.head(2))
+                print('\nnano_all\n', nano_all.head(2))
+                print('\ncount_df\n', count_df.head(2))
+                print('\nmerge\n', merge.head(2))
+            except:
+                pass
 
 
 if __name__ == '__main__':
