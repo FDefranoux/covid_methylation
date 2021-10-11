@@ -64,7 +64,7 @@ def main(file_allele):
                 nano_df, df[df['name'] == file], on=['read_name', 'CHR'])
             nano_all[['pos', 'start', 'end']] = nano_all[[
                 'pos', 'start', 'end']].astype(int)
-            nano_all = nano_all[(nano_all['pos'] < nano_all['start']-5)
+            nano_all = nano_all[(nano_all['pos'] > nano_all['start']-5)
                                 & (nano_all['pos'] < nano_all['end']+5)]
 
             count_df = count_table(nano_all)
@@ -76,14 +76,10 @@ def main(file_allele):
             merge.to_csv(os.path.join('nanopolish_grep_reads',
                                       file + '_genotyped.csv'), index=False)
         except Exception as err:
-            # print(file, err)
             try:
                 print('nano_df\n', nano_df.head(2))
-                print('\nnano_all\n', nano_all.head(2))
-                print('\ncount_df\n', count_df.head(2))
-                print('\nmerge\n', merge.head(2))
             except:
-                pass
+                print(file, err)
 
 
 if __name__ == '__main__':
