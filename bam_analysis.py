@@ -55,7 +55,6 @@ def main(file_allele):
                  'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
                  'num_calling_strands', 'num_motifs', 'sequence']
     file_ls = set(df['name'].to_list())
-    file_ls = ['gcc00022_PROM1']
     for file in file_ls:
         try:
             nano_file = os.path.join('nanopolish_grep_reads', file + '.txt')
