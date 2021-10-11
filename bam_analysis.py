@@ -64,8 +64,8 @@ def main(file_allele):
                 nano_df, df[df['name'] == file], on=['read_name', 'CHR'])
             nano_all[['pos', 'start', 'end']] = nano_all[[
                 'pos', 'start', 'end']].astype(int)
-            nano_all = nano_all[(nano_all['pos'] > nano_all['start']-5)
-                                & (nano_all['pos'] < nano_all['end']+5)]
+            nano_all = nano_all[(nano_all['pos'] > nano_all['start'] - 500005)
+                                & (nano_all['pos'] < nano_all['end'] + 500005)]
 
             count_df = count_table(nano_all)
             merge = pd.merge(nano_all, count_df[['SNP', 'name', 'Genotype']],
