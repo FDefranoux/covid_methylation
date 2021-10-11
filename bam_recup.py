@@ -37,10 +37,12 @@ class SamFiles:
             bam_head = pd.DataFrame([el.split('\t')
                                      for el in str(bam.header).split('\n')])
             bam_head = bam_head[bam_head[0] == '@SQ'][[1, 2]]
-            ref_namelenght = bam_head[1].str.cat(bam_head[2], '_')
-            return ref_namelenght.T
-        except:
-            pass
+            ref_namelenght = pd.DataFrame(
+                bam_head[1].str.cat(bam_head[2], '_'))
+            return ref_namelenght
+        except Exception as err:
+            print(err)
+            return pd.DataFrame()
 
     def open(file):
         try:
@@ -50,8 +52,9 @@ class SamFiles:
                 sam_file = pysam.TabixFile(file)
             return sam_file
         except OSError as err:
+            print(file)
+            print(err)
             # error_files[file] = f'{type} file {file} or its index were not found'
-            return err
 
 
 def region_select_fromSNP(pos_df):
@@ -70,54 +73,85 @@ def region_select_fromSNP(pos_df):
     return pos_df
 
 
-def recup_bam_perregion(file_ls, bam_list, method='_',
-                        output_names={'datas': 'Bam_summary.csv',
-                                      'reference': 'Ref_table.csv'}):
+def recup_bam_perregion(file_ls, bam_list, output_names={'datas': 'Bam_summary.csv',
+                                                         'reference': 'Ref_table.csv'}):
     bam_cols = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ',
                 'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', '?']
-    df_final = pd.DataFrame()
-    print(method)
     for file in file_ls:
-        print(file)
         bam_file = SamFiles.open(file)
-        SamFiles.bam_ref_names(bam_file).to_csv(output_names['reference'],
-                                                mode='a', header=False)
+        ref_names = SamFiles.bam_ref_names(bam_file)
+        try:
+            ref_names.columns = [file]
+            ref_names.T.to_csv(output_names['reference'],
+                               mode='a', header=False)
+        except:
+            print(f'No reference name for file {file}')
 
-        if method == 'bam_regions':
-            for region in bam_list:
+        for region in bam_list:
+            bam_df = pd.DataFrame()
+            try:
                 bam_df = SamFiles.sam_iterators(
                     SamFiles.region(bam_file), region, cols=bam_cols)
-                bam_df['SNP_hit'] = region[1] + 1
+                bam_df['SNP_hit'] = str(
+                    region[0]) + '_' + str(region[1] + 1)  # WORKING?
                 bam_df['file'] = file
-                df_final = pd.concat([df_final, bam_df], axis=0)
+            except:
+                print(f'Error with iterating over file {file}')
 
-        elif method == 'bam_reads':
-            name_indexed = pysam.IndexedReads(bam_file)
-            name_indexed.build()
-            bam_list = pd.read_table('reads.txt', header=None)[0].tolist()
-            print(bam_list)
-            for read in bam_list:
-                bam_df = SamFiles.sam_iterators(
-                    SamFiles.reads(name_indexed), [read], cols=bam_cols)
-                print(bam_df.head(2))
-                bam_df['file'] = file
-                df_final = pd.concat([df_final, bam_df], axis=0)
-        else:
-            print('WRONG METHOD')
-
-        if file == file_list[0]:
-            df_final.to_csv(output_names['datas'], mode='a',
-                            header=True, index=False)
-        else:
-            df_final.to_csv(output_names['datas'], mode='a',
-                            header=False, index=False)
+            try:
+                if file == file_ls[0]:
+                    print(bam_df.head(3))
+                    bam_df.to_csv(output_names['datas'], mode='a',
+                                  header=True, index=False)
+                else:
+                    bam_df.to_csv(output_names['datas'], mode='a',
+                                  header=False, index=False)
+            except:
+                print(f'unexpected error during the saving of file {file}')
 
 
-def main(file_list, hits_table, output, bam_method='bam_regions'):
+def recup_bam_perregion_pileup(file_ls, bam_list, output_names={'datas': 'Bam_summary.csv',
+                                                                'reference': 'Ref_table.csv'}):
+    bam_cols = ['QNAME', 'FLAG', 'RNAME', 'POS', 'MAPQ',
+                'CIGAR', 'RNEXT', 'PNEXT', 'TLEN', 'SEQ', 'QUAL', '?']
+    for file in file_ls:
+        bam_file = SamFiles.open(file)
+        ref_names = SamFiles.bam_ref_names(bam_file)
+        try:
+            ref_names.columns = [file]
+            ref_names.T.to_csv(output_names['reference'],
+                               mode='a', header=False)
+        except:
+            print(f'No reference name for file {file}')
+
+        bases_and_read_ids = {}
+        samfile = pysam.Samfile(file, "rb")
+        for region in bam_list:
+            for pup in samfile.pileup(*region):
+                for read in pup.pileups:
+                    if not read.is_del:
+                        if pup.pos == region[2]:
+                            bases_and_read_ids[read.alignment.query_name] = read.alignment.query_sequence[read.query_position]
+                            print('\tbase in read %s = %s' %
+                                  (read.alignment.query_name,
+                                   read.alignment.query_sequence[read.query_position]))
+            bam_df = pd.DataFrame(bases_and_read_ids)
+            try:
+                if file == file_ls[0]:
+                    bam_df.to_csv(output_names['datas'], mode='a',
+                                  header=True, index=False)
+                else:
+                    bam_df.to_csv(output_names['datas'], mode='a',
+                                  header=False, index=False)
+            except:
+                print(f'unexpected error during the saving of file {file}')
+
+
+def main(file_list, hits_table, output, method='pileup'):
     # Remove existing file
-    for name in output:
+    for name in output.values():
         if name in os.listdir():
-            print('Removing previous file')
+            print(f'Removing previous file {name}')
             os.remove(name)
 
     # Reading Hits table
@@ -128,9 +162,14 @@ def main(file_list, hits_table, output, bam_method='bam_regions'):
     table_region = region_select_fromSNP(
         hits_df[['#CHR', 'POS', 'REF', 'ALT']])
     list_region = set(table_region['tuple'])
+    print('list region len:', len(list_region))
+
     # Look up bam files
-    recup_bam_perregion(file_ls, list_region,
-                        method=bam_method, output_names=output)
+    print(method)
+    if method == 'pandas':
+        recup_bam_perregion(file_ls, list_region, output_names=output)
+    else:
+        recup_bam_perregion_pileup(file_ls, list_region, output_names=output)
 
 
 if __name__ == '__main__':
@@ -139,6 +178,6 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--file_list', type=str, default=file_list)
     parser.add_argument('-t', '--hits_table', type=str, default=hits_table)
     parser.add_argument('-o', '--output', default=output)
-    parser.add_argument('-m', '--bam_method', type=str, default='bam_regions')
+    parser.add_argument('-m', '--bam_method', type=str, default='pileup')
     args = parser.parse_args()
     main(**vars(args))
