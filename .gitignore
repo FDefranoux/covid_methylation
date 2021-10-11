@@ -1,15 +1,7 @@
 # Personal settings
-*/*.gz
-*/*.gz.*
+*
 !*.py
 !*.sh
-!todo.*
-.pytest_cache/
-*.tsv
-*.tsv.*
-*.gz.*
-*.gz
 */*
-Notes.md
-*.csv
-*/*.csv
+!*/*.py
+!*/*.sh
