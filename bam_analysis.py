@@ -20,24 +20,24 @@ def count_table(df, t=0.95):
     table_counts['other%'] = table_counts['other'].astype(int) / sum
     table_counts['ref%'] = table_counts['ref'].astype(int) / sum
 
-    table_counts.loc[(table_counts['alt'] > 0.5 * t)
-                     & (table_counts['ref'] < 1 * t), 'Genotype'] = '0/1'
-    table_counts.loc[(table_counts['ref'] > 0.5 * t)
-                     & (table_counts['alt'] < 1 * t), 'Genotype'] = '0/1'
+    table_counts.loc[(table_counts['alt%'] > 0.5 * t)
+                     & (table_counts['ref%'] < 1 * t), 'Genotype'] = '0/1'
+    table_counts.loc[(table_counts['ref%'] > 0.5 * t)
+                     & (table_counts['alt%'] < 1 * t), 'Genotype'] = '0/1'
 
-    table_counts.loc[(table_counts['ref'] > 0.5 * t)
-                     & (table_counts['other'] < 1 * t), 'Genotype'] = '0/2'
-    table_counts.loc[(table_counts['other'] > 0.5 * t)
-                     & (table_counts['ref'] < 1 * t), 'Genotype'] = '0/2'
+    table_counts.loc[(table_counts['ref%'] > 0.5 * t)
+                     & (table_counts['other%'] < 1 * t), 'Genotype'] = '0/2'
+    table_counts.loc[(table_counts['other%'] > 0.5 * t)
+                     & (table_counts['ref%'] < 1 * t), 'Genotype'] = '0/2'
 
-    table_counts.loc[(table_counts['other'] > 0.5 * t)
-                     & (table_counts['alt'] < 1 * t), 'Genotype'] = '1/2'
-    table_counts.loc[(table_counts['alt'] > 0.5 * t)
-                     & (table_counts['other'] < 1 * t), 'Genotype'] = '1/2'
+    table_counts.loc[(table_counts['other%'] > 0.5 * t)
+                     & (table_counts['alt%'] < 1 * t), 'Genotype'] = '1/2'
+    table_counts.loc[(table_counts['alt%'] > 0.5 * t)
+                     & (table_counts['other%'] < 1 * t), 'Genotype'] = '1/2'
 
-    table_counts.loc[table_counts['ref'] > 1.0 * t, 'Genotype'] = '0/0'
-    table_counts.loc[table_counts['alt'] > 1.0 * t, 'Genotype'] = '1/1'
-    table_counts.loc[table_counts['other'] > 1.0 * t, 'Genotype'] = '2/2'
+    table_counts.loc[table_counts['ref%'] > 1.0 * t, 'Genotype'] = '0/0'
+    table_counts.loc[table_counts['alt%'] > 1.0 * t, 'Genotype'] = '1/1'
+    table_counts.loc[table_counts['other%'] > 1.0 * t, 'Genotype'] = '2/2'
 
     return table_counts
 
