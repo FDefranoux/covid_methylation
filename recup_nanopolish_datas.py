@@ -2,148 +2,149 @@ import pandas as pd
 import pysam
 import os
 import sys
-
+import seaborn as sns
 # TODO: duplication of rows SOLVED ??
 # TODO: SNPs that are in the range but do not appear as row SOLVED ??
 
-
 # Variable definition
-file_list = 'all_files.txt'
+file_list = 'nano_list.txt'
 hits_table = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
-output_name = 'Sign_all.csv'
-# output_name = 'SNPs_across_nanopolish_files.csv'
+output = {'datas': 'Nanopolish_per_significant_region.csv'}
+
+
+class SamFiles:
+    # def __init__(self):
+    #     self.error_files = {}
+    def region(file):
+        return file.fetch
+
+    def reads(file):
+        return file.find
+
+    def sam_iterators(func, args, cols=None):
+        try:
+            args = tuple(args)
+            rows = [x for x in func(*args)]
+            array = [str(r).split('\t') for r in rows]
+            df = pd.DataFrame(array, columns=cols)
+        except Exception as err:
+            print(f'Error with {args}\n{err}')
+            # error_files[file].append(f'Error with {args}\n{err}')
+            df = pd.DataFrame()
+        return df
+
+    def bam_ref_names(bam):
+        # Bam file header saving
+        try:
+            bam_head = pd.DataFrame([el.split('\t')
+                                     for el in str(bam.header).split('\n')])
+            bam_head = bam_head[bam_head[0] == '@SQ'][[1, 2]]
+            ref_namelenght = pd.DataFrame(
+                bam_head[1].str.cat(bam_head[2], '_'))
+            return ref_namelenght
+        except Exception as err:
+            print(err)
+            return pd.DataFrame()
+
+    def open(file):
+        try:
+            if '.bam' in file:
+                sam_file = pysam.AlignmentFile(file, 'rb')
+            else:
+                sam_file = pysam.TabixFile(file)
+            return sam_file
+        except OSError as err:
+            print(file)
+            print(err)
+            # error_files[file] = f'{type} file {file} or its index were not found'
 
 
 def region_select_fromSNP(pos_df):
-    pos_df = pos_df.astype(int).copy()
-    pos_df['new_POS'] = (pos_df['POS'] - 11).astype(str).str[:-6]
-    pos_df['POS_end'] = (pos_df['new_POS'].astype(int) + 1) * 1000000
-    pos_df['new_POS'] = pos_df['new_POS'] + '000000'
+    pos_df = pos_df.copy()
     pos_df['#CHR'] = pos_df['#CHR'].astype(str)
-    pos_df[['new_POS', 'POS', 'POS_end']] = pos_df[[
-        'new_POS', 'POS', 'POS_end']].astype(int)
-    pos_df.set_index('POS', inplace=True)
+    # Creating temporary columns
+    pos_df['new_POS'] = (pos_df['POS'] - 1)
+    pos_df['POS_end'] = (pos_df['POS'] + 1)
+    # Regions to look up
     pos_df['tuple'] = pos_df.set_index(
-        ['#CHR', 'new_POS', 'POS_end']).index.tolist()
-    return pos_df['tuple']
+        ['#CHR', 'new_POS', 'POS_end']).astype(str).index.tolist()
+    # Concat of CHR and POS as potentiel index
+    pos_df['SNP_POS'] = pos_df['#CHR'] + '_' + pos_df['POS'].astype(str)
+    # Removing temporary columns
+    pos_df.drop(['new_POS', 'POS_end', 'POS'], axis=1)
+    return pos_df
 
 
-def tabix_listregion_listfiles(list_region, file, error_files, cols=[]):
-    df_final = pd.DataFrame(columns=cols)
-    error_files[file] = []
-    try:
-        tbx = pysam.TabixFile(file)
-        for n, region_n in enumerate(list_region):
+def region_select_fromSNP_minmax(pos_df):
+    # SEE how to implement this correctly and usefully
+    # TODO: Assignement of SNP for each region
+    pos_df = pos_df.copy()
+    pos_df['new_POS'] = (pos_df['POS'] - 11).astype(str).str[:-6]
+    pos_df['new_POS'] = pos_df['new_POS'] + '000000'
+    minmax_table = pos_df.groupby(['#CHR', 'new_POS']).min(['POS']) - 500000
+    minmax_table['max'] = pos_df.groupby(
+        ['#CHR', 'new_POS']).max()['POS'] + 500000
+    minmax_table.reset_index('#CHR', inplace=True)
+    min_list = minmax_table.set_index(['#CHR', 'POS', 'max']).index.tolist()
+    for n in range(len(min_list)-1):
+        if min_list[n][0] == min_list[n+1][0]:
+            if min_list[n][2] > min_list[n+1][1]:
+                mini = min(min_list[n][1], min_list[n+1][1])
+                maxi = max(min_list[n][2], min_list[n+1][2])
+                min_list[n] = (min_list[n][0], mini, maxi)
+                min_list[n+1] = (min_list[n][0], mini, maxi)
+    minmax_table['tuple'] = min_list
+    return minmax_table
+
+
+def recup_nanopolish(file_ls, region_list, output_names={'datas': 'Bam_summary.csv',
+                                                         'reference': 'Ref_table.csv'}):
+    nano_cols = ['#CHR', 'strand', 'start', 'end', 'read_name', 'log_lik_ratio',
+                 'log_lik_methylated', 'log_lik_unmethylated', 'num_calling_strands',
+                 'num_motifs', 'sequence']
+    for file in file_ls:
+        nano_file = SamFiles.open(file)
+        for region in region_list:
+            nano_df = pd.DataFrame()
             try:
-                rows_n = [x for x in tbx.fetch(*region_n)]
-                row_array = [r.split('\t') for r in rows_n]
-                df_reg = pd.DataFrame(row_array, columns=cols)
-                df_reg['region'] = str(region_n)
-                df_final = pd.concat([df_final, df_reg], axis=0)
+                nano_df = SamFiles.sam_iterators(
+                    SamFiles.region(nano_file), region, cols=nano_cols)
+                nano_df['SNP_hit'] = str(
+                    region[0]) + '_' + str(region[1] + 1)  # WORKING?
+                nano_df['file'] = file
+            except:
+                print(f'Error with iterating over file {file}')
 
-            except Exception as err:
-                error_files[file].append(f'Error with {region_n}\n{err}')
-
-    except OSError:
-        error_files[file] = f'{file}.tbi not found\n'
-    return df_final[df_final.duplicated() == False]
-
-
-def associate_snp_to_sequence(df_final, snps):
-    df = df_final[df_final.duplicated() == False].copy()
-    # If working with regions, how to associate SNP value to region asked
-    df['start_sequence'] = df['start'].astype(int) - 5
-    df['end_sequence'] = df['start_sequence'].astype(
-        int) + df['sequence'].str.len()
-    df_out = pd.DataFrame()
-    for snp in set(snps):
-        df_int = df[(df['start_sequence'] <= snp)
-                    & (df['end_sequence'] >= snp)].copy()
-        df_int['SNP'] = snp
-        df_out = pd.concat([df_out, df_int], axis=0)
-    return df_out
-
-
-def associate_snp_alleles(df_final, snps_refs):
-    df = df_final[df_final.duplicated() == False].copy()
-    df['rel_snp'] = df['SNP'] - df['start_sequence']
-    df['allele'] = '0'
-    df['#CHR'] = df['#CHR'].astype(int)
-
-    for n in df['rel_snp'].unique():
-        df.loc[df['rel_snp'] == n, 'allele'] = df['sequence'].str[n]
-    allele_df = pd.merge(snps_refs, df, right_on=[
-                         'SNP', '#CHR'], left_on=['POS', '#CHR'])
-
-    # Genotype association
-    allele_df.loc[allele_df['REF'] == allele_df['allele'], 'Genotype'] = '0'
-    allele_df.loc[allele_df['ALT'] == allele_df['allele'], 'Genotype'] = '1'
-    allele_df.loc[(allele_df['ALT'] != allele_df['allele']) & (
-        allele_df['REF'] != allele_df['allele']), 'Genotype'] = '2'
-    return allele_df
+            try:
+                if file == file_ls[0]:
+                    nano_df.to_csv(output_names['datas'], mode='a',
+                                   header=True, index=False)
+                else:
+                    nano_df.to_csv(output_names['datas'], mode='a',
+                                   header=False, index=False)
+            except:
+                print(f'unexpected error during the saving of file {file}')
 
 
 def main(file_list, hits_table):
     # Remove existing file
-    if output_name in os.listdir():
-        print('Removing previous file')
-        os.remove(output_name)
+    for name in output.values():
+        if name in os.listdir():
+            print(f'Removing previous file {name}')
+            os.remove(name)
 
-    # Reading the tables
-    file_ls = pd.read_table(file_list, header=0).iloc[:, 0].tolist()
+    # Reading Hits table
+    file_ls = pd.read_table(file_list, header=None).iloc[:, 0].tolist()
     hits_df = pd.read_table(hits_table)
+    assert hits_df[hits_df[['#CHR', 'POS']].duplicated(
+        )].empty, 'CHR and SNP Position not enough to create unique indexes'
+    # table_region = region_select_fromSNP(hits_df[['#CHR', 'POS']])
+    table_region = region_select_fromSNP_minmax(hits_df[['#CHR', 'POS']])
+    list_region = set(table_region['tuple'])
+    print('list region len:', len(list_region))
 
-    # Find a way to select columns directly from the file
-    cols = ['#CHR', 'strand', 'start', 'end', 'read_name', 'log_lik_ratio',
-            'log_lik_methylated', 'log_lik_unmethylated', 'num_calling_strands',
-            'num_motifs', 'sequence']
-    list_region = set(region_select_fromSNP(hits_df[['#CHR', 'POS']]).values)
-    error_files = {}
-    for file in file_ls:
-        error_files[file] = []
-        # print(pd.read_table(file, sep='\t', nrows=1).columns.tolist() == cols)
-        df_final = tabix_listregion_listfiles(
-            list_region, file, error_files, cols=cols)
-        df_final['#CHR'] = df_final['#CHR'].astype(int)
-
-        if not df_final.empty:
-            df_final['File'] = file
-            df_snps = associate_snp_to_sequence(df_final[['sequence', 'start',
-                                                          '#CHR']],
-                                                hits_df['POS'])
-            df_final = pd.merge(df_final, df_snps, on=['sequence', 'start',
-                                                       '#CHR'])
-
-            snp_genotype = associate_snp_alleles(df_final[['start_sequence',
-                                                           'SNP', 'sequence',
-                                                           '#CHR']],
-                                                 hits_df[['#CHR', 'POS',
-                                                          'REF', 'ALT']])
-            df_final = pd.merge(df_final, snp_genotype, on=['#CHR',
-                                                            'start_sequence',
-                                                            'sequence', 'SNP'])
-            if 'PROM1' in file:
-                df_final['Phenotype'] = 'Severe'
-            else:
-                df_final['Phenotype'] = 'Mild'
-            pos_snp_diff = df_final[df_final['POS'] != df_final['SNP']]
-            if not pos_snp_diff.empty:
-                print('ERRRROR, SNP and POS columns not equals')
-                print(pos_snp_diff)
-                # df_final.drop(pos_snp_diff.index, axis=0)
-            del df_final['POS']
-            if file == file_ls[0]:
-                df_final.to_csv(output_name, mode='a',
-                                header=True, index=False)
-            else:
-                df_final.to_csv(output_name, mode='a',
-                                header=False, index=False)
-        elif error_files[file] == []:
-            error_files = 'No DFs'
-    print('DICT OF ERRORS', file=sys.stderr)
-    print([(file, err) for (file, err) in zip(
-        error_files.keys(), error_files.values()) if err != []],
-         file=sys.stderr)
+    # Look up bam files
+    recup_nanopolish(file_ls, list_region, output_names=output)
 
 
 if __name__ == '__main__':
