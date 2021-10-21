@@ -1,9 +1,8 @@
 import pandas as pd
 import glob
 import seaborn as sns
-from matplotlib import pyplot as plt
 from scipy.stats import zscore
-import pingouin as pg
+import matplotlib.pyplot as plt
 
 
 dir = 'nanopolish_grep_reads/*.csv'
@@ -26,7 +25,7 @@ def drop_datas(df, group_ls, thresh_zscore=5, rep=3):
     removed.loc[outliers, 'removed'] = 'Outliers'
     removed.loc[set(no_replicate_index).intersection(
         outliers), 'removed'] = 'Both'
-    print(removed['removed'].sort_index())
+    print(removed['removed'].value_counts())
     # TODO: Modify the function to include automatic dropping of datas
     # per ex with Analysis of categorical datas (repartition of cat datas)
     # TODO: Do we need to remove the whole row when there is just one variable
@@ -46,91 +45,156 @@ def info_per_value(df, col, lim=2):
     return expe_info.drop(col, axis=1).dropna(how='all').dropna(how='all', axis=1)
 
 
-# Opening the file
-all = pd.DataFrame()
-for file in glob.glob(dir):
-    inter = pd.read_csv(file)
+def gather_dfs_fromdir(dir):
+    df = pd.DataFrame()
+    for file in glob.glob(dir):
+        inter = pd.read_csv(file)
+        try:
+            df = pd.concat([df, inter])
+        except Exception as err:
+            print(file, err)
+    return df
+
+
+def filtering_datas(df, force=False):
+    print(f'Initial dataframe shape: {df.shape}\n', df.nunique())
+
+    # Dropping empty rows and cols
+    new_df = df.dropna(how='all').dropna(how='all', axis=1).copy()
+
+    # Deletions
+    new_df = new_df[new_df['ref'].str.len() < 2].copy()
+    print('Filtering deletions: ', new_df.shape)
+
+    # Filtering out the reads_names associated with several CHR
+    double_chr = new_df.groupby(
+        ['read_name', 'CHR']).size().unstack().dropna(thresh=2).index
+    if len(double_chr) > 0:
+        new_df.drop(double_chr, inplace=True)
+    print('Filtering read_name in several chr: ', new_df.shape)
+
+    # Drop SNP with 'other' allele (non-ref non-alt)
+    new_df = new_df[new_df['Genotype'].isin(['0/0', '0/1', '1/1'])].copy()
+    print(new_df[new_df['Genotype'].isin(['0/0', '0/1', '1/1'])
+                 == False]['Genotype'].value_counts())
+    print('Filtering non-ref non-alt alleles: ', new_df.shape)
+
+    # All genotypes represented
+    snp_all_genotype = new_df.groupby(['SNP', 'Genotype']).size(
+        ).unstack().dropna(thresh=2).reset_index()['SNP'].unique().tolist()
+    print(len(snp_all_genotype))
+    new_df = new_df[new_df['SNP'].isin(snp_all_genotype)].copy()
+    print('Filtering SNP with one genotype represented: ', new_df.shape)
+
+    # Drop outliers and samples missing replicates
     try:
-        all = pd.concat([all, inter])
-    except Exception as err:
-        print(file, err)
-all = pd.read_csv('nano_genotyped_5b.csv')
-# Dropping empty rows and cols
-all = all.dropna(how='all').dropna(how='all', axis=1).copy()  # Same shape
-# Insert phenotype variable
-all.loc[all['name'].str.contains('PROM1'), 'phenotype'] = 'Severe'
-all['phenotype'].fillna('Mild', inplace=True)
-all.loc[all['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
-    all['pos'] - all['start'])
-# Data cleaning
-# Deletions
-all = all[all['ref'].str.len() < 2].copy()
-
-# Filtering out the reads_names associated with several CHR
-double_chr = all.groupby(
-    ['read_name', 'CHR']).size().unstack().dropna(thresh=2).index
-if len(double_chr) > 0:
-    all.drop(double_chr, inplace=True)
-try:
-    nano_new, outliers = drop_datas(all, 'phenotype', thresh_zscore=5, rep=3)
-except:
-    print('Error in dropping outliers')
-    nano_new = pd.DataFrame()
-
-if len(nano_new) > 100:
-    median_df = nano_new.groupby(
-        ['Genotype', 'read_name', 'SNP', 'name', 'phenotype']).median().reset_index()
-else:
-    print('ERROR in droping outliers')
-    median_df = nano_new.groupby(
-        ['Genotype', 'read_name', 'SNP', 'name', 'phenotype']).median().reset_index()
-
-# Removing the SNPs representing only one genotype
-snp_index = median_df.groupby(['SNP', 'phenotype', 'Genotype']).size().unstack().filter(
-    regex='^((?!2).)*$', axis=1).dropna(thresh=3, axis=0).reset_index()['SNP'].unique()
-
-# Removing the 2 alleles ?
-blou = info_per_value(median_df[median_df['SNP'].isin(snp_index)], 'Genotype')
-blou
-
-selected = median_df[(median_df['SNP'].isin(snp_index)) & (
-    median_df['Genotype'].isin(['0/0', '0/1', '1/1']))].copy()
-for chr in selected['CHR'].unique():
-    pos_chr = selected.loc[selected['CHR'] == chr, 'pos'].copy()
-    selected.loc[selected['CHR'] == chr, 'pos_bin'] = pd.qcut(
-        pos_chr.astype(int), q=10, duplicates='drop')
-
-selected.groupby(['CHR', 'pos_bin', 'Genotype']).size().unstack()
-
-# When we categorize the SNPs per bins
-g1 = sns.catplot(data=selected, kind='violin',
-                 x='pos_bin', y='log_lik_ratio', hue='Genotype',
-                 row='CHR', col='phenotype', aspect=4,
-                 inner="quartile", linewidth=3,
-                 sharex=False, sharey=False)
-
-for chr in selected['CHR'].unique():
-    n_snp = selected[selected['CHR'] == chr]['SNP'].nunique()
-    print(int(chr), '--', n_snp)
-    if n_snp < 5:
-        g = sns.catplot(data=selected[selected['CHR'] == chr], kind='violin',
-                        y='SNP', x='log_lik_ratio', hue='Genotype',
-                        col='phenotype', height=4,
-                        aspect=1,
-                        inner="quartile", linewidth=2,
-                        sharex=False, sharey=False)
-    elif n_snp < 50:
-        g = sns.catplot(data=selected[selected['CHR'] == chr], kind='violin',
-                        y='SNP', x='log_lik_ratio', hue='Genotype',
-                        col='phenotype', height=15,
-                        aspect=.7,
-                        inner="quartile", linewidth=2,
-                        sharex=False, sharey=False)
+        nano_new, outliers = drop_datas(new_df, 'name', thresh_zscore=5, rep=3)
+    except:
+        print('Error in dropping outliers')
+    print(f'Filtered dataframe shape: {new_df.shape}\n', new_df.nunique())
+    print(df.shape[0] - new_df.shape[0], df.shape[0] / 3)
+    if force:
+        return nano_new
     else:
-        g = sns.catplot(data=selected[selected['CHR'] == chr], kind='violin',
-                        y='SNP', x='log_lik_ratio', hue='Genotype',
-                        col='phenotype', height=45,
-                        aspect=.15,
-                        inner="quartile", linewidth=1,
-                        sharex=False, sharey=False)
-    g.savefig(f'violinplot_median_all_SNPs_ratio_distribution_chr{chr}.png')
+        if df.shape[0] - new_df.shape[0] > df.shape[0] / 3:
+
+            print('More than one third of the datas would be removed !'
+                  + 'Returning initial dataframe')
+            return new_df
+        else:
+            return nano_new
+
+
+def violinplot(df):
+    n_snp = df['SNP'].nunique()
+    if n_snp < 5:
+        g_chr = sns.catplot(data=df, kind='violin',
+                            y='SNP', x='log_lik_ratio', hue='Genotype',
+                            col='phenotype', height=4,
+                            aspect=1,
+                            inner="quartile", linewidth=2,
+                            sharex=False, sharey=False)
+    elif n_snp < 50:
+        g_chr = sns.catplot(data=df, kind='violin',
+                            y='SNP', x='log_lik_ratio', hue='Genotype',
+                            col='phenotype', height=15,
+                            aspect=.7,
+                            inner="quartile", linewidth=2,
+                            sharex=False, sharey=False)
+    else:
+        g_chr = sns.catplot(data=df, kind='violin',
+                            y='SNP', x='log_lik_ratio', hue='Genotype',
+                            col='phenotype', height=45,
+                            aspect=.15,
+                            inner="quartile", linewidth=1,
+                            sharex=False, sharey=False)
+    g_chr.savefig(
+        f'violinplot_median_all_SNPs_ratio_distribution_chr{chr}.png')
+
+
+def ridgeplot(df):
+    with sns.plotting_context('paper', font_scale=2):
+        sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
+        g_ridge = sns.FacetGrid(df, col="phenotype", row='pos',
+                                hue="Genotype", aspect=10, height=4, palette="mako",
+                                margin_titles=True,  legend_out=True)
+
+        [plt.setp(ax.texts, text="") for ax in g_ridge.axes.flat]
+        # Draw the densities in a few steps
+        g_ridge.map(sns.kdeplot, "log_lik_ratio", bw_adjust=.2, clip_on=False,
+                    fill=True, alpha=0.4, linewidth=0, legend=True, thresh=0.5)
+        g_ridge.map(sns.kdeplot, "log_lik_ratio", clip_on=False, color="w",
+                    lw=2, bw_adjust=.2, cut=0, thresh=0.5)
+
+        # Set the subplots to overlap
+        plt.subplots_adjust(hspace=-0.3, wspace=-0.5, top=5, bottom=4)
+
+        # # Remove axes details that don't play well with overlap
+        # g.set_titles(row_template = '{col_name}', col_template = '{row_name}', loc='left',
+        #         fontdict = {'fontsize': 2, 'color': 'c'})
+        g_ridge.set_titles("")
+        g_ridge.set(yticks=[], ylabel="")
+        g_ridge.despine(bottom=True, left=True)
+        try:
+            g_ridge.legend(bbox_to_anchor=(0.5, 1))
+        except:
+            pass
+        g_ridge.savefig(
+            f'rigdeplot_median_all_SNPs_ratio_distribution_chr{chr}.png')
+
+
+def main(dir):
+    all = gather_dfs_fromdir(dir)
+    # all = pd.read_csv('nano_genotyped_5b.csv')
+    all = filtering_datas(all)
+
+    # Insert phenotype variable
+    all.loc[all['name'].str.contains('PROM1'), 'phenotype'] = 'Severe'
+    all['phenotype'].fillna('Mild', inplace=True)
+    all.loc[all['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
+        all['pos'] - all['start'])
+
+    # Median over the read_name
+    median_df = all.groupby(
+        ['Genotype', 'read_name', 'SNP', 'name', 'phenotype']).median().reset_index()
+    for chr in median_df['CHR'].unique():
+        violinplot(median_df[median_df['CHR'] == chr])
+        ridgeplot(median_df[median_df['CHR'] == chr])
+
+
+
+
+# # Per Bins ?
+# for chr in selected['CHR'].unique():
+#     pos_chr = selected.loc[selected['CHR'] == chr, 'pos'].copy()
+#     selected.loc[selected['CHR'] == chr, 'pos_bin'] = pd.qcut(
+#         pos_chr.astype(int), q=10, duplicates='drop')
+#
+#
+# # When we categorize the SNPs per bins
+# g_bin = sns.catplot(data=selected, kind='violin',
+#                     x='pos_bin', y='log_lik_ratio', hue='Genotype',
+#                     row='CHR', col='phenotype', aspect=4,
+#                     inner="quartile", linewidth=3,
+#                     sharex=False, sharey=False)
+# g_bin.savefig('violinplot_median_bin_SNPs_ratio_distribution_chr.png')
