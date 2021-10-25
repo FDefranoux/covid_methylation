@@ -107,7 +107,7 @@ def filtering_datas(df, force=False):
             return nano_new
 
 
-def violinplot(df):
+def violinplot(df, chr=''):
     n_snp = df['SNP'].nunique()
     if n_snp < 5:
         g_chr = sns.catplot(data=df, kind='violin',
@@ -134,7 +134,7 @@ def violinplot(df):
         f'violinplot_median_all_SNPs_ratio_distribution_chr{chr}.png')
 
 
-def ridgeplot(df):
+def ridgeplot(df, chr=''):
     with sns.plotting_context('paper', font_scale=2):
         sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
         g_ridge = sns.FacetGrid(df, col="phenotype", row='pos',
@@ -258,8 +258,8 @@ def main(dir):
     scatter_with_unique_pos(median_df)
     scatter_with_unique_pos2(median_df)
     for chr in median_df['CHR'].sort_values().unique():
-        violinplot(median_df[median_df['CHR'] == chr])
-        ridgeplot(median_df[median_df['CHR'] == chr])
+        violinplot(median_df[median_df['CHR'] == chr], chr=chr)
+        # ridgeplot(median_df[median_df['CHR'] == chr])
 
 
 if __name__ == '__main__':
