@@ -4,6 +4,7 @@ import seaborn as sns
 from scipy.stats import zscore
 import matplotlib.pyplot as plt
 import pingouin as pg
+from sklearn.linear_model import LinearRegression
 
 
 dir = 'nanopolish_grep_reads/*.csv'
@@ -136,18 +137,21 @@ def violinplot(df, chr=''):
 
 def ridgeplot(df, chr=''):
     with sns.plotting_context('paper', font_scale=2):
-        sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
+        sns.set_theme(style="white", rc={
+                      "axes.facecolor": (0, 0, 0, 0), "font.size": 16})
         g_ridge = sns.FacetGrid(df, col="phenotype", row='pos',
-                                hue="Genotype", aspect=10, height=4,
+                                hue="Genotype",
+                                aspect=10,
+                                height=4,
                                 palette="mako",
                                 margin_titles=True)
 
         [plt.setp(ax.texts, text="") for ax in g_ridge.axes.flat]
         # Draw the densities in a few steps
-        g_ridge.map(sns.kdeplot, "log_lik_ratio", bw_adjust=.2, clip_on=False,
+        g_ridge.map(sns.kdeplot, "log_lik_ratio", bw_adjust=.2,
+                    clip_on=False,
                     fill=True, alpha=0.4, linewidth=0,
-                    legend=True
-                    )
+                    legend=True)
         g_ridge.map(sns.kdeplot, "log_lik_ratio", clip_on=False, color="w",
                     lw=2, bw_adjust=.2, cut=0)
 
@@ -158,12 +162,10 @@ def ridgeplot(df, chr=''):
         # g.set_titles(row_template = '{col_name}', col_template = '{row_name}', loc='left',
         #         fontdict = {'fontsize': 2, 'color': 'c'})
         g_ridge.set_titles("")
-        g_ridge.set(yticks=[], ylabel="")
+        g_ridge.set(yticks=[], ylabel="", xtick_labelsize=16)
         g_ridge.despine(bottom=True, left=True)
-        try:
-            g_ridge.legend(bbox_to_anchor=(0.5, 1))
-        except:
-            pass
+        plt.legend(bbox_to_anchor=(0, 2),
+                   fontsize='xx-large', facecolor='white')
         g_ridge.savefig(
             f'rigdeplot_median_all_SNPs_ratio_distribution_chr{chr}.png')
 
@@ -205,7 +207,7 @@ def scatter_with_unique_pos2(median_df):
 
 
 def stat_linear_reg(df):
-    from sklearn.linear_model import LinearRegression
+
     # create linear regression object
     mlr = LinearRegression()
     df['phenotype'] = pd.get_dummies(df['phenotype']).iloc[:, 0]
@@ -237,19 +239,20 @@ def stat_linear_reg(df):
 
 
 def main(dir):
-    all = gather_dfs_fromdir(dir)
-    # all = pd.read_csv('nano_genotyped_5b.csv')
-    all = filtering_datas(all)
+    all_df = gather_dfs_fromdir(dir)
+    # all_df = pd.read_csv('nano_genotyped_5b.csv')
+    all_df = filtering_datas(all_df)
 
     # Insert phenotype variable
-    all.loc[all['name'].str.contains('PROM1'), 'phenotype'] = 'Severe'
-    all['phenotype'].fillna('Mild', inplace=True)
-    # all.loc[all['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
-    #     all['pos'] - all['start'])
+    all_df.loc[all_df['name'].str.contains('PROM1'), 'phenotype'] = 'Severe'
+    all_df['phenotype'].fillna('Mild', inplace=True)
+    # all_df.loc[all_df['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
+    #     all_df['pos'] - all_df['start'])
 
     # Median over the read_name
-    median_df = all.groupby(
-        ['Genotype', 'SNP', 'name', 'phenotype', 'read_name']).median().reset_index()
+    median_df = all_df.groupby(
+        ['Genotype', 'SNP', 'name',
+         'phenotype', 'read_name']).median().reset_index()
 
     # STATS
     results_lm = stat_linear_reg(median_df)
@@ -261,10 +264,6 @@ def main(dir):
     scatter_with_unique_pos2(median_df)
     for chr in median_df['CHR'].sort_values().unique():
         violinplot(median_df[median_df['CHR'] == chr], chr=chr)
-
-
-chr = 1
-ridgeplot(median_df[median_df['CHR'] == chr])
 
 
 if __name__ == '__main__':
