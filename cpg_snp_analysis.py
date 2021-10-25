@@ -3,6 +3,7 @@ import glob
 import seaborn as sns
 from scipy.stats import zscore
 import matplotlib.pyplot as plt
+import pingouin as pg
 
 
 dir = 'nanopolish_grep_reads/*.csv'
@@ -25,7 +26,7 @@ def drop_datas(df, group_ls, thresh_zscore=5, rep=3):
     removed.loc[outliers, 'removed'] = 'Outliers'
     removed.loc[set(no_replicate_index).intersection(
         outliers), 'removed'] = 'Both'
-    print(removed['removed'].value_counts())
+    print(removed['removed'].value_counts().to_markdown())
     # TODO: Modify the function to include automatic dropping of datas
     # per ex with Analysis of categorical datas (repartition of cat datas)
     # TODO: Do we need to remove the whole row when there is just one variable
@@ -57,8 +58,7 @@ def gather_dfs_fromdir(dir):
 
 
 def filtering_datas(df, force=False):
-    print(f'Initial dataframe shape: {df.shape}\n', df.nunique())
-
+    print(f'Initial dataframe shape: {df.shape}')
     # Dropping empty rows and cols
     new_df = df.dropna(how='all').dropna(how='all', axis=1).copy()
 
@@ -74,25 +74,26 @@ def filtering_datas(df, force=False):
     print('Filtering read_name in several chr: ', new_df.shape)
 
     # Drop SNP with 'other' allele (non-ref non-alt)
-    new_df = new_df[new_df['Genotype'].isin(['0/0', '0/1', '1/1'])].copy()
     print(new_df[new_df['Genotype'].isin(['0/0', '0/1', '1/1'])
-                 == False]['Genotype'].value_counts())
+                 == False]['Genotype'].value_counts().to_markdown())
+    new_df = new_df[new_df['Genotype'].isin(['0/0', '0/1', '1/1'])].copy()
     print('Filtering non-ref non-alt alleles: ', new_df.shape)
 
     # All genotypes represented
-    snp_all_genotype = new_df.groupby(['SNP', 'Genotype']).size(
-        ).unstack().dropna(thresh=2).reset_index()['SNP'].unique().tolist()
-    print(len(snp_all_genotype))
-    new_df = new_df[new_df['SNP'].isin(snp_all_genotype)].copy()
-    print('Filtering SNP with one genotype represented: ', new_df.shape)
+    # snp_all_genotype = new_df.groupby(['SNP', 'Genotype']).size(
+    #     ).unstack().dropna(thresh=2).reset_index()['SNP'].unique().tolist()
+    # print(len(snp_all_genotype))
+    # new_df = new_df[new_df['SNP'].isin(snp_all_genotype)].copy()
+    # print('Filtering SNP with one genotype represented: ', new_df.shape)
 
     # Drop outliers and samples missing replicates
     try:
-        nano_new, outliers = drop_datas(new_df, 'name', thresh_zscore=5, rep=3)
+        nano_new, outliers = drop_datas(new_df, 'name', thresh_zscore=3, rep=3)
     except:
         print('Error in dropping outliers')
-    print(f'Filtered dataframe shape: {new_df.shape}\n', new_df.nunique())
-    print(df.shape[0] - new_df.shape[0], df.shape[0] / 3)
+    print(f'\nFiltered dataframe shape: {new_df.shape}\n')
+    print('\nRemoval summary:\n',
+          (df.nunique() - new_df.nunique()).T.to_markdown())
     if force:
         return nano_new
     else:
@@ -137,7 +138,7 @@ def ridgeplot(df):
         sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
         g_ridge = sns.FacetGrid(df, col="phenotype", row='pos',
                                 hue="Genotype", aspect=10, height=4, palette="mako",
-                                margin_titles=True,  legend_out=True)
+                                margin_titles=True,  legend_out=False)
 
         [plt.setp(ax.texts, text="") for ax in g_ridge.axes.flat]
         # Draw the densities in a few steps
@@ -163,6 +164,75 @@ def ridgeplot(df):
             f'rigdeplot_median_all_SNPs_ratio_distribution_chr{chr}.png')
 
 
+def scatter_with_unique_pos(median_df):
+    n = 0
+    for chr in median_df['CHR'].sort_values().unique():
+        pos = median_df.loc[median_df['CHR'] == chr, 'pos'].sort_values()
+        for val in pos.unique():
+            median_df.loc[(median_df['pos'] == val)
+                          & (median_df['CHR'] == chr), 'pos_unique'] = n
+            n = n + 1
+        n = n + 10
+        median_df.loc[(median_df['CHR'] == chr), 'sep'] = n
+
+    g = sns.relplot(kind='scatter', data=median_df, x='pos_unique', y='log_lik_ratio',
+                    hue='Genotype', col='phenotype', aspect=4)
+    g.set(xlabel="CHR", xticks=median_df['sep'].unique(
+    ), xticklabels=median_df['CHR'].unique())
+    g.savefig('scatterplot_median_all_snp_ratio_uniquepos_colorg.png')
+
+
+def scatter_with_unique_pos2(median_df):
+    n = 0
+    for chr in median_df['CHR'].sort_values().unique():
+        pos = median_df.loc[median_df['CHR'] == chr, 'pos'].sort_values()
+        for val in pos.unique():
+            median_df.loc[(median_df['pos'] == val)
+                          & (median_df['CHR'] == chr), 'pos_unique'] = n
+            n = n + 1
+        n = n + 10
+        median_df.loc[(median_df['CHR'] == chr), 'sep'] = n
+
+    g = sns.relplot(kind='scatter', data=median_df, x='pos_unique', y='log_lik_ratio',
+                    hue='phenotype', col='Genotype', aspect=4)
+    g.set(xlabel="CHR", xticks=median_df['sep'].unique(
+    ), xticklabels=median_df['CHR'].unique())
+    g.savefig('scatterplot_median_all_snp_ratio_uniquepos_colorph.png')
+
+
+def stat_linear_reg(df):
+    from sklearn.linear_model import LinearRegression
+    # create linear regression object
+    mlr = LinearRegression()
+    df['phenotype'] = pd.get_dummies(df['phenotype']).iloc[:, 0]
+    df['Genotype'].replace(
+        {'0/0': 0, '0/1': 1, '1/1': 2}, inplace=True)
+
+    # Linear model
+    results = pd.DataFrame(
+        index=['intercept', 'coeffs [Genotype, Phenotype]', 'r2'])
+    for snp in df['SNP'].unique():
+        snp_df = df[df['SNP'] == snp].copy()
+        x, y = snp_df[['log_lik_ratio', 'phenotype']], snp_df['Genotype']
+        mlr.fit(x, y)
+        results[snp] = [mlr.intercept_, mlr.coef_, mlr.score(x, y)]
+        try:
+            aov = pg.anova(data=snp_df, dv='log_lik_ratio',
+                           between=['Genotype', 'phenotype'])
+            print(aov)
+            results[snp] = pd.concat([results, aov.set_index(
+                'Source')[['F']].rename(columns={'F': snp})])
+        except:
+            pass
+        if (mlr.score(x, y) > 0.3) & (0 not in mlr.coef_):
+            g = sns.lmplot(data=snp_df, x='Genotype',
+                           y='log_lik_ratio', hue='phenotype')
+            g.set(xticks=[0, 1, 2], xticklabels=[
+                  '0/0', '0/1', '1/1'])
+
+    return results.T
+
+
 def main(dir):
     all = gather_dfs_fromdir(dir)
     # all = pd.read_csv('nano_genotyped_5b.csv')
@@ -176,25 +246,35 @@ def main(dir):
 
     # Median over the read_name
     median_df = all.groupby(
-        ['Genotype', 'read_name', 'SNP', 'name', 'phenotype']).median().reset_index()
-    for chr in median_df['CHR'].unique():
+        ['Genotype', 'SNP', 'name', 'phenotype', 'read_name']).median().reset_index()
+
+    # STATS
+    results_lm = stat_linear_reg(median_df)
+    print('\n# Linear regression results\n')
+    print(results_lm.sort_index().to_markdown())
+
+    # PLOTS
+    for chr in median_df['CHR'].sort_values().unique():
         violinplot(median_df[median_df['CHR'] == chr])
         ridgeplot(median_df[median_df['CHR'] == chr])
+    # scatter_with_unique_pos(median_df)
+    # scatter_with_unique_pos2(median_df)
 
 
+if __name__ == '__main__':
+    main(dir)
 
-
-# # Per Bins ?
-# for chr in selected['CHR'].unique():
-#     pos_chr = selected.loc[selected['CHR'] == chr, 'pos'].copy()
-#     selected.loc[selected['CHR'] == chr, 'pos_bin'] = pd.qcut(
-#         pos_chr.astype(int), q=10, duplicates='drop')
-#
-#
-# # When we categorize the SNPs per bins
-# g_bin = sns.catplot(data=selected, kind='violin',
-#                     x='pos_bin', y='log_lik_ratio', hue='Genotype',
-#                     row='CHR', col='phenotype', aspect=4,
-#                     inner="quartile", linewidth=3,
-#                     sharex=False, sharey=False)
-# g_bin.savefig('violinplot_median_bin_SNPs_ratio_distribution_chr.png')
+    # # Per Bins ?
+    # for chr in selected['CHR'].unique():
+    #     pos_chr = selected.loc[selected['CHR'] == chr, 'pos'].copy()
+    #     selected.loc[selected['CHR'] == chr, 'pos_bin'] = pd.qcut(
+    #         pos_chr.astype(int), q=10, duplicates='drop')
+    #
+    #
+    # # When we categorize the SNPs per bins
+    # g_bin = sns.catplot(data=selected, kind='violin',
+    #                     x='pos_bin', y='log_lik_ratio', hue='Genotype',
+    #                     row='CHR', col='phenotype', aspect=4,
+    #                     inner="quartile", linewidth=3,
+    #                     sharex=False, sharey=False)
+    # g_bin.savefig('violinplot_median_bin_SNPs_ratio_distribution_chr.png')
