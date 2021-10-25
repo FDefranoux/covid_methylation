@@ -52,6 +52,7 @@ def gather_dfs_fromdir(dir):
         inter = pd.read_csv(file)
         try:
             df = pd.concat([df, inter])
+            print(file, df.shape)
         except Exception as err:
             print(file, err)
     return df
@@ -77,7 +78,7 @@ def filtering_datas(df, force=False):
     print(new_df[new_df['Genotype'].isin(['0/0', '0/1', '1/1'])
                  == False]['Genotype'].value_counts().to_markdown())
     new_df = new_df[new_df['Genotype'].isin(['0/0', '0/1', '1/1'])].copy()
-    print('Filtering non-ref non-alt alleles: ', new_df.shape)
+    print('Filtering non-ref non-alt alleles:', new_df.shape)
 
     # All genotypes represented
     # snp_all_genotype = new_df.groupby(['SNP', 'Genotype']).size(
@@ -241,8 +242,8 @@ def main(dir):
     # Insert phenotype variable
     all.loc[all['name'].str.contains('PROM1'), 'phenotype'] = 'Severe'
     all['phenotype'].fillna('Mild', inplace=True)
-    all.loc[all['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
-        all['pos'] - all['start'])
+    # all.loc[all['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
+    #     all['pos'] - all['start'])
 
     # Median over the read_name
     median_df = all.groupby(
@@ -254,11 +255,11 @@ def main(dir):
     print(results_lm.sort_index().to_markdown())
 
     # PLOTS
+    scatter_with_unique_pos(median_df)
+    scatter_with_unique_pos2(median_df)
     for chr in median_df['CHR'].sort_values().unique():
         violinplot(median_df[median_df['CHR'] == chr])
         ridgeplot(median_df[median_df['CHR'] == chr])
-    # scatter_with_unique_pos(median_df)
-    # scatter_with_unique_pos2(median_df)
 
 
 if __name__ == '__main__':
