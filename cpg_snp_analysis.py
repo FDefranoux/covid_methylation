@@ -51,8 +51,8 @@ def gather_dfs_fromdir(dir):
     for file in glob.glob(dir):
         inter = pd.read_csv(file)
         try:
-            df = pd.concat([df, inter])
-            print(file, df.shape)
+            df = pd.concat([df, inter], ignore_index=True)
+            print(file, df.shape, inter.shape)
         except Exception as err:
             print(file, err)
     return df
@@ -138,15 +138,18 @@ def ridgeplot(df, chr=''):
     with sns.plotting_context('paper', font_scale=2):
         sns.set_theme(style="white", rc={"axes.facecolor": (0, 0, 0, 0)})
         g_ridge = sns.FacetGrid(df, col="phenotype", row='pos',
-                                hue="Genotype", aspect=10, height=4, palette="mako",
-                                margin_titles=True,  legend_out=False)
+                                hue="Genotype", aspect=10, height=4,
+                                palette="mako",
+                                margin_titles=True)
 
         [plt.setp(ax.texts, text="") for ax in g_ridge.axes.flat]
         # Draw the densities in a few steps
         g_ridge.map(sns.kdeplot, "log_lik_ratio", bw_adjust=.2, clip_on=False,
-                    fill=True, alpha=0.4, linewidth=0, legend=True, thresh=0.5)
+                    fill=True, alpha=0.4, linewidth=0,
+                    legend=True
+                    )
         g_ridge.map(sns.kdeplot, "log_lik_ratio", clip_on=False, color="w",
-                    lw=2, bw_adjust=.2, cut=0, thresh=0.5)
+                    lw=2, bw_adjust=.2, cut=0)
 
         # Set the subplots to overlap
         plt.subplots_adjust(hspace=-0.3, wspace=-0.5, top=5, bottom=4)
@@ -220,7 +223,6 @@ def stat_linear_reg(df):
         try:
             aov = pg.anova(data=snp_df, dv='log_lik_ratio',
                            between=['Genotype', 'phenotype'])
-            print(aov)
             results[snp] = pd.concat([results, aov.set_index(
                 'Source')[['F']].rename(columns={'F': snp})])
         except:
@@ -259,7 +261,10 @@ def main(dir):
     scatter_with_unique_pos2(median_df)
     for chr in median_df['CHR'].sort_values().unique():
         violinplot(median_df[median_df['CHR'] == chr], chr=chr)
-        # ridgeplot(median_df[median_df['CHR'] == chr])
+
+
+chr = 1
+ridgeplot(median_df[median_df['CHR'] == chr])
 
 
 if __name__ == '__main__':
