@@ -5,6 +5,7 @@ from scipy.stats import zscore
 import matplotlib.pyplot as plt
 import pingouin as pg
 from sklearn.linear_model import LinearRegression
+from scipy.stats import spearmanr
 
 
 dir = 'nanopolish_grep_reads/*.csv'
@@ -44,7 +45,7 @@ def info_per_value(df, col, lim=2):
                                             val_df.nunique()[val_df.nunique() < lim].index]
         except IndexError:
             pass
-    return expe_info.drop(col, axis=1).dropna(how='all').dropna(how='all', axis=1)
+    return expe_info.drop(col, axis=1)
 
 
 def gather_dfs_fromdir(dir):
@@ -81,12 +82,14 @@ def filtering_datas(df, force=False):
     new_df = new_df[new_df['Genotype'].isin(['0/0', '0/1', '1/1'])].copy()
     print('Filtering non-ref non-alt alleles:', new_df.shape)
 
-    # All genotypes represented
-    # snp_all_genotype = new_df.groupby(['SNP', 'Genotype']).size(
-    #     ).unstack().dropna(thresh=2).reset_index()['SNP'].unique().tolist()
-    # print(len(snp_all_genotype))
-    # new_df = new_df[new_df['SNP'].isin(snp_all_genotype)].copy()
-    # print('Filtering SNP with one genotype represented: ', new_df.shape)
+    # 2 genotypes represented  min
+    snp_all_genotype = new_df.groupby(['SNP', 'Genotype']).size(
+        ).unstack().dropna(thresh=2).reset_index()['SNP'].unique().tolist()
+    cpg_all_genotype = new_df.groupby(['cpg', 'Genotype']).size(
+        ).unstack().dropna(thresh=2).reset_index()['cpg'].unique().tolist()
+    new_df = new_df[new_df['SNP'].isin(
+        snp_all_genotype) & new_df['cpg'].isin(cpg_all_genotype)].copy()
+    print('Filtering SNP/CpG with one genotype represented: ', new_df.shape)
 
     # Drop outliers and samples missing replicates
     try:
@@ -108,39 +111,39 @@ def filtering_datas(df, force=False):
             return nano_new
 
 
-def violinplot(df, chr=''):
-    n_snp = df['SNP'].nunique()
+def violinplot(df, chr='', yvar='cpg', xvar='log_lik_ratio', huevar='Genotype', colvar='phenotype'):
+    n_snp = df[yvar].nunique()
     if n_snp < 5:
         g_chr = sns.catplot(data=df, kind='violin',
-                            y='SNP', x='log_lik_ratio', hue='Genotype',
-                            col='phenotype', height=4,
-                            aspect=1,
+                            y=yvar, x=xvar, hue=huevar,
+                            col=colvar, height=4,
+                            aspect=1, orient='h',
                             inner="quartile", linewidth=2,
                             sharex=False, sharey=False)
     elif n_snp < 50:
         g_chr = sns.catplot(data=df, kind='violin',
-                            y='SNP', x='log_lik_ratio', hue='Genotype',
-                            col='phenotype', height=15,
-                            aspect=.7,
+                            y=yvar, x=xvar, hue=huevar,
+                            col=colvar, height=15,
+                            aspect=.7, orient='h',
                             inner="quartile", linewidth=2,
                             sharex=False, sharey=False)
     else:
         g_chr = sns.catplot(data=df, kind='violin',
-                            y='SNP', x='log_lik_ratio', hue='Genotype',
-                            col='phenotype', height=45,
-                            aspect=.15,
+                            y=yvar, x=xvar, hue=huevar,
+                            col=colvar, height=45,
+                            aspect=.15, orient='h',
                             inner="quartile", linewidth=1,
                             sharex=False, sharey=False)
     g_chr.savefig(
-        f'violinplot_median_all_SNPs_ratio_distribution_chr{chr}.png')
+        f'violinplot_median_all_{yvar}_{xvar}_distribution_chr{chr}.png')
 
 
-def ridgeplot(df, chr=''):
-    with sns.plotting_context('paper', font_scale=2):
+def ridgeplot(df, chr='', rowvar='cpg', huevar='Genotype', colvar='phenotype', var='log_lik_ratio'):
+    with sns.plotting_context('paper', font_scale=0.1):
         sns.set_theme(style="white", rc={
                       "axes.facecolor": (0, 0, 0, 0), "font.size": 16})
-        g_ridge = sns.FacetGrid(df, col="phenotype", row='pos',
-                                hue="Genotype",
+        g_ridge = sns.FacetGrid(df, col=colvar, row=rowvar,
+                                hue=huevar,
                                 aspect=10,
                                 height=4,
                                 palette="mako",
@@ -148,11 +151,11 @@ def ridgeplot(df, chr=''):
 
         [plt.setp(ax.texts, text="") for ax in g_ridge.axes.flat]
         # Draw the densities in a few steps
-        g_ridge.map(sns.kdeplot, "log_lik_ratio", bw_adjust=.2,
+        g_ridge.map(sns.kdeplot, var, bw_adjust=.2,
                     clip_on=False,
                     fill=True, alpha=0.4, linewidth=0,
                     legend=True)
-        g_ridge.map(sns.kdeplot, "log_lik_ratio", clip_on=False, color="w",
+        g_ridge.map(sns.kdeplot, var, clip_on=False, color="w",
                     lw=2, bw_adjust=.2, cut=0)
 
         # Set the subplots to overlap
@@ -162,108 +165,125 @@ def ridgeplot(df, chr=''):
         # g.set_titles(row_template = '{col_name}', col_template = '{row_name}', loc='left',
         #         fontdict = {'fontsize': 2, 'color': 'c'})
         g_ridge.set_titles("")
-        g_ridge.set(yticks=[], ylabel="", xtick_labelsize=16)
+        g_ridge.set(yticks=[], ylabel="")
         g_ridge.despine(bottom=True, left=True)
         plt.legend(bbox_to_anchor=(0, 2),
                    fontsize='xx-large', facecolor='white')
         g_ridge.savefig(
-            f'rigdeplot_median_all_SNPs_ratio_distribution_chr{chr}.png')
+            f'rigdeplot_median_all_{rowvar}_{var}_distribution_chr{chr}_color{huevar}.png')
 
 
-def scatter_with_unique_pos(median_df):
+def scatter_with_unique_cpg(median_df, huevar='Genotype', colvar='phenotype', xvar='cpg', yvar='log_lik_ratio'):
     n = 0
     for chr in median_df['CHR'].sort_values().unique():
-        pos = median_df.loc[median_df['CHR'] == chr, 'pos'].sort_values()
-        for val in pos.unique():
-            median_df.loc[(median_df['pos'] == val)
-                          & (median_df['CHR'] == chr), 'pos_unique'] = n
+        var_df = median_df.loc[median_df['CHR'] == chr, xvar].sort_values()
+        for val in var_df.unique():
+            median_df.loc[(median_df[xvar] == val)
+                          & (median_df['CHR'] == chr), f'{xvar}_unique'] = n
             n = n + 1
         n = n + 10
         median_df.loc[(median_df['CHR'] == chr), 'sep'] = n
 
-    g = sns.relplot(kind='scatter', data=median_df, x='pos_unique', y='log_lik_ratio',
-                    hue='Genotype', col='phenotype', aspect=4)
+    g = sns.relplot(kind='scatter', data=median_df, x=f'{xvar}_unique', y=yvar,
+                    hue=huevar, col=colvar, aspect=4)
     g.set(xlabel="CHR", xticks=median_df['sep'].unique(
-    ), xticklabels=median_df['CHR'].unique())
-    g.savefig('scatterplot_median_all_snp_ratio_uniquepos_colorg.png')
+        ), xticklabels=median_df['CHR'].unique())
+    g.savefig(
+        f'scatterplot_median_all_{yvar}_unique{xvar}_color{huevar}.png')
 
 
-def scatter_with_unique_pos2(median_df):
-    n = 0
-    for chr in median_df['CHR'].sort_values().unique():
-        pos = median_df.loc[median_df['CHR'] == chr, 'pos'].sort_values()
-        for val in pos.unique():
-            median_df.loc[(median_df['pos'] == val)
-                          & (median_df['CHR'] == chr), 'pos_unique'] = n
-            n = n + 1
-        n = n + 10
-        median_df.loc[(median_df['CHR'] == chr), 'sep'] = n
-
-    g = sns.relplot(kind='scatter', data=median_df, x='pos_unique', y='log_lik_ratio',
-                    hue='phenotype', col='Genotype', aspect=4)
-    g.set(xlabel="CHR", xticks=median_df['sep'].unique(
-    ), xticklabels=median_df['CHR'].unique())
-    g.savefig('scatterplot_median_all_snp_ratio_uniquepos_colorph.png')
-
-
-def stat_linear_reg(df):
-
+def stat_linear_reg(df, var='log_lik_ratio', unit='cpg', plot=False):
     # create linear regression object
     mlr = LinearRegression()
     df['phenotype'] = pd.get_dummies(df['phenotype']).iloc[:, 0]
     df['Genotype'].replace(
         {'0/0': 0, '0/1': 1, '1/1': 2}, inplace=True)
-
     # Linear model
-    results = pd.DataFrame(
-        index=['intercept', 'coeffs [Genotype, Phenotype]', 'r2'])
-    for snp in df['SNP'].unique():
-        snp_df = df[df['SNP'] == snp].copy()
-        x, y = snp_df[['log_lik_ratio', 'phenotype']], snp_df['Genotype']
+    results = pd.DataFrame(index=df[unit].unique(),
+                           columns=['intercept', 'coeffs [Genotype, Phenotype]',
+                                    'r2', 'MWU 0/0-0/1', 'MWU 1/1-0/1', 'spearman'])
+    for u in df[unit].unique():
+        u_df = df[df[unit] == u].copy()
+        x, y = u_df[[var, 'phenotype']], u_df['Genotype']
         mlr.fit(x, y)
-        results[snp] = [mlr.intercept_, mlr.coef_, mlr.score(x, y)]
+        results.loc[u, ['intercept', 'coeffs [Genotype, Phenotype]', 'r2']] = [
+            mlr.intercept_, mlr.coef_, mlr.score(x, y)]
         try:
-            aov = pg.anova(data=snp_df, dv='log_lik_ratio',
-                           between=['Genotype', 'phenotype'])
-            results[snp] = pd.concat([results, aov.set_index(
-                'Source')[['F']].rename(columns={'F': snp})])
+            results.loc[u, 'spearman'] = str(
+                spearmanr(u_df[var], u_df[['phenotype', 'Genotype']])[1])
+        except Exception as err:
+            print(err)
+        try:
+            mwu = pg.mwu(u_df[u_df['Genotype'] == 0][var],
+                         u_df[u_df['Genotype'] == 1][var])
+            results.loc[u, 'MWU 0/0-0/1'] = float(mwu['p-val'])
         except:
             pass
-        if (mlr.score(x, y) > 0.3) & (0 not in mlr.coef_):
-            g = sns.lmplot(data=snp_df, x='Genotype',
-                           y='log_lik_ratio', hue='phenotype')
-            g.set(xticks=[0, 1, 2], xticklabels=[
-                  '0/0', '0/1', '1/1'])
-
-    return results.T
+        try:
+            mwu2 = pg.mwu(u_df[u_df['Genotype'] == 2][var],
+                          u_df[u_df['Genotype'] == 1][var])
+            results.loc[u, 'MWU 1/1-0/1'] = float(mwu2['p-val'])
+        except:
+            pass
+        if plot:
+            if (mlr.score(x, y) > 0.3) & (0 not in mlr.coef_):
+                g = sns.lmplot(data=u_df, x='Genotype',
+                               y=var, hue='phenotype', legend=False)
+                g.set(xticks=[0, 1, 2], xticklabels=[
+                      '0/0', '0/1', '1/1'])
+                plt.legend(labels=['Mild', 'Severe'], loc='upper left')
+                plt.title(unit + ' ' + u)
+    return results
 
 
 def main(dir):
     all_df = gather_dfs_fromdir(dir)
     # all_df = pd.read_csv('nano_genotyped_5b.csv')
-    all_df = filtering_datas(all_df)
 
     # Insert phenotype variable
     all_df.loc[all_df['name'].str.contains('PROM1'), 'phenotype'] = 'Severe'
     all_df['phenotype'].fillna('Mild', inplace=True)
-    # all_df.loc[all_df['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
-    #     all_df['pos'] - all_df['start'])
+    all_df['cpg'] = all_df['CHR'].astype(
+        str) + ':' + all_df['start'].astype(
+        str) + ':' + all_df['num_motifs'].astype(str)
+    try:
+        all_df.loc[all_df['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
+            all_df['pos'] - all_df['start'])
+    except:
+        pass
+
+    # Filetring
+    all_df = filtering_datas(all_df, force=True)
 
     # Median over the read_name
     median_df = all_df.groupby(
-        ['Genotype', 'SNP', 'name',
-         'phenotype', 'read_name']).median().reset_index()
+        ['phenotype', 'name', 'cpg', 'SNP', 'Genotype']).median().reset_index()
 
     # STATS
-    results_lm = stat_linear_reg(median_df)
-    print('\n# Linear regression results\n')
+    results_lm = stat_linear_reg(median_df, plot=False, unit='cpg')
+    print('\n# CPG Linear regression results\n')
+    print(results_lm.sort_index().to_markdown())
+    results_lm = stat_linear_reg(median_df, plot=False, unit='SNP')
+    print('\n# SNP Linear regression results\n')
     print(results_lm.sort_index().to_markdown())
 
     # PLOTS
-    scatter_with_unique_pos(median_df)
-    scatter_with_unique_pos2(median_df)
+    scatter_with_unique_cpg(median_df, huevar='Genotype',
+                            colvar='phenotype', xvar='cpg', yvar='log_lik_ratio')
+    scatter_with_unique_cpg(median_df, huevar='Genotype',
+                            colvar='phenotype', xvar='SNP', yvar='log_lik_ratio')
+    scatter_with_unique_cpg(median_df, huevar='phenotype',
+                            colvar='Genotype', xvar='cpg', yvar='log_lik_ratio')
+    scatter_with_unique_cpg(median_df, huevar='phenotype',
+                            colvar='Genotype', xvar='SNP', yvar='log_lik_ratio')
+
     for chr in median_df['CHR'].sort_values().unique():
-        violinplot(median_df[median_df['CHR'] == chr], chr=chr)
+        violinplot(median_df[median_df['CHR'] == chr], chr=chr, yvar='cpg',
+                   xvar='log_lik_ratio', huevar='Genotype', colvar='phenotype')
+        violinplot(median_df[median_df['CHR'] == chr], chr=chr, yvar='SNP',
+                   xvar='log_lik_ratio', huevar='Genotype', colvar='phenotype')
+        # ridgeplot(median_df[median_df['CHR'] == 1], chr=1, rowvar='SNP',
+        #           huevar='Genotype', colvar='phenotype', var='log_lik_ratio')
 
 
 if __name__ == '__main__':
@@ -283,3 +303,10 @@ if __name__ == '__main__':
     #                     inner="quartile", linewidth=3,
     #                     sharex=False, sharey=False)
     # g_bin.savefig('violinplot_median_bin_SNPs_ratio_distribution_chr.png')
+
+
+#TODO:
+# Violin plot
+# Fix ridge PLOTS not working with cpg, bigger font size
+# other linear model
+#
