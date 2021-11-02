@@ -56,7 +56,7 @@ def filtering_datas(df, results):
         df.shape[0] - new_df.shape[0])
 
     # Drop SNP with 'other' allele (non-ref non-alt)
-    new_df = new_df[new_df['Gen'] == 'other'].copy()
+    new_df = new_df[new_df['Gen'] != 'other'].copy()
     results.loc['Non ALT or REF alleles'] = int(
         df.shape[0] - new_df.shape[0])
     results.loc['final shape'] = str(new_df.shape)
