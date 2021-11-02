@@ -274,11 +274,12 @@ def main(file):
     all_df = pd.read_csv(file, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
                                         'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name'])
     # QUESTION: Dropping outliers ?
-
+    print('SHAPE', all_df.shape)
     # Median over the read_name with same Allele calling
     median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
         'SNP', 'Genotype', 'Gen']).median().reset_index()
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
+    print('SHAPE median_df', median_df.shape)
 
     # Filter per genotype
     print(all_df[all_df['Gen'] != 'other']['Genotype'].unique())
