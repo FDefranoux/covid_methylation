@@ -6,6 +6,7 @@ import pingouin as pg
 from sklearn.linear_model import LinearRegression
 from scipy.stats import spearmanr
 import numpy as np
+import sys
 
 file = 'Filtered_nano_bam_files_all_samples.csv'
 file_snp = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
