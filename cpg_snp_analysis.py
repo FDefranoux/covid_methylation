@@ -272,14 +272,17 @@ def linear_reg_plot(df, var='', unit='', plot=False, title_suppl=''):
 
 # MAIN
 def main(file):
-    # all_df = pd.read_csv(file, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
-    #                                     'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name'])
+    # Selection of the SNPs
+    snp_ls = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p',
+        dist_bp=100000)
+
+    # Reading in chunks
     chunks = []
     size=0
     n=0
-    for chunk in pd.read_csv(file, chunksize=10000, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
+    for chunk in pd.read_csv(file, chunksize=1000000, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
                                          'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name']):
-        part = chunk[ chunk['Gen'] != 'other']
+        part = chunk[(chunk['Gen'] != 'other') & (chunk['SNP'].isin(snp_ls))]
         chunks.append(part)
         size = part.size + size
         n += 1
@@ -340,19 +343,13 @@ def main(file):
     scatter_with_unique_cpg(median_df, huevar='Gen',
                             colvar=None, xvar='cpg', yvar='log_lik_ratio')
 
-    # Selection of the SNP
-    snp_ls = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p',
-        dist_bp=100000)
-    select_df = median_df[median_df['SNP'].isin(snp_ls)].copy()
-    del median_df
-
     # Violinplot only for the SNP
-    violinplot(select_df[select_df['Genotype'] == '0/1'].sort_values(
+    violinplot(median_df[median_df['Genotype'] == '0/1'].sort_values(
         by=['CHR', 'SNP', 'Genotype']), title_supp='_heterozygotes', yvar='SNP',
         xvar='log_lik_ratio', huevar='Gen', colvar=None)
-    violinplot(select_df.sort_values(by=['CHR', 'SNP', 'Genotype']), title_supp='_best_pval', yvar='SNP',
+    violinplot(median_df.sort_values(by=['CHR', 'SNP', 'Genotype']), title_supp='_best_pval', yvar='SNP',
         xvar='log_lik_ratio', huevar='Genotype', colvar=None)
-    violinplot(select_df.sort_values(by=['CHR','cpg', 'Genotype']), title_supp='_best_pval', yvar='cpg',
+    violinplot(median_df.sort_values(by=['CHR','cpg', 'Genotype']), title_supp='_best_pval', yvar='cpg',
         xvar='log_lik_ratio', huevar='Genotype', colvar=None)
 
 
