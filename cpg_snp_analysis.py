@@ -271,21 +271,33 @@ def linear_reg_plot(df, var='', unit='', plot=False, title_suppl=''):
 
 # MAIN
 def main(file):
-    all_df = pd.read_csv(file, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
-                                        'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name'])
+    # all_df = pd.read_csv(file, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
+    #                                     'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name'])
+    chunks = []
+    for chunk in pd.read_csv(file, chunksize=10000, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
+                                         'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name']):
+        part = chunk[ chunk['Gen'] != 'other']
+        chunks.append(part)
+        print(getsizeof(chunks), flush=True)
+
+    all_df = pd.concat(chunks)
+    del chunks
+
     # QUESTION: Dropping outliers ?
-    print('SHAPE', all_df.shape)
+    print('SHAPE all_df', all_df.shape, getsizeof(all_df))
     # Median over the read_name with same Allele calling
     median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
         'SNP', 'Genotype', 'Gen']).median().reset_index()
+    del all_df
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
-    print('SHAPE median_df', median_df.shape)
+    print('SHAPE median_df', median_df.shape, getsizeof(median_df), flush=True)
 
     # Filter per genotype
-    print(all_df[all_df['Gen'] != 'other']['Genotype'].unique())
+    print(median_df['Genotype'].value_counts())
     median_df = median_df[median_df['Gen'] != 'other']
+    print('SHAPE median_df', median_df.shape, getsizeof(median_df), flush=True)
     # median_df = genotype_filter(median_df, n_genotypes=2)
-    median_df = count_filter(median_df[median_df['Gen'] != 'other'], min_count=5, n_genotypes=2)
+    median_df = count_filter(median_df, min_count=5, n_genotypes=2)
 
     # Filter per quantity
     median_df['Genotype_dum'] = median_df['Genotype'].replace({'0/0': 0, '0/1': 1, '1/1': 2})
@@ -308,13 +320,14 @@ def main(file):
 
         g1 = sns.relplot(kind='scatter', data=stat, y='diff_means_altVSref', x='Spearman correlation Genotype rho')
         g1.savefig(f'Diff_meansVSrho_{unit}.png')
+        del stat
 
         # Stats heterozygotes
         stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
             measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
         g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho')
         g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes.png')
-
+        del stat_het
 
     # PLOTS
     scatter_with_unique_cpg(median_df, huevar='Genotype',
@@ -326,6 +339,7 @@ def main(file):
     snp_ls = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p',
         dist_bp=100000)
     select_df = median_df[median_df['SNP'].isin(snp_ls)].copy()
+    del median_df
 
     # Violinplot only for the SNP
     violinplot(select_df[select_df['Genotype'] == '0/1'].sort_values(
