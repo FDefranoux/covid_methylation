@@ -275,6 +275,7 @@ def main(file):
     # Selection of the SNPs
     snp_ls = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p',
         dist_bp=100000)
+    gen_ls = ['0/0', '0/1', '1/1']
 
     # Reading in chunks
     chunks = []
@@ -282,13 +283,14 @@ def main(file):
     n=0
     for chunk in pd.read_csv(file, chunksize=1000000, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
                                          'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name']):
-        part = chunk[(chunk['Gen'] != 'other') & (chunk['SNP'].isin(snp_ls))]
+        part = chunk[(chunk['Gen'] != 'other') & (chunk['SNP'].isin(snp_ls)) & (chunk['Genotype'].isin(gen_ls))]
         chunks.append(part)
         size = part.size + size
         n += 1
         print(n, size, flush=True)
 
     all_df = pd.concat(chunks)
+    all_df.to_csv('Filtered_nano_bam_files_all_samples.csv', index=False, mode='w')
     del chunks
 
     # QUESTION: Dropping outliers ?
