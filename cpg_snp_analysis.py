@@ -275,11 +275,15 @@ def main(file):
     # all_df = pd.read_csv(file, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
     #                                     'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name'])
     chunks = []
+    size=0
+    n=0
     for chunk in pd.read_csv(file, chunksize=10000, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
                                          'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name']):
         part = chunk[ chunk['Gen'] != 'other']
         chunks.append(part)
-        print(part.size, flush=True)
+        size = part.size + size
+        n += 1
+        print(n, size, flush=True)
 
     all_df = pd.concat(chunks)
     del chunks
