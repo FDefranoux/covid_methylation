@@ -279,24 +279,24 @@ def main(file):
                                          'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name']):
         part = chunk[ chunk['Gen'] != 'other']
         chunks.append(part)
-        print(getsizeof(chunks), flush=True)
+        print(part.size, flush=True)
 
     all_df = pd.concat(chunks)
     del chunks
 
     # QUESTION: Dropping outliers ?
-    print('SHAPE all_df', all_df.shape, getsizeof(all_df))
+    print('SHAPE all_df', all_df.shape, all_df.size)
     # Median over the read_name with same Allele calling
     median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
         'SNP', 'Genotype', 'Gen']).median().reset_index()
     del all_df
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
-    print('SHAPE median_df', median_df.shape, getsizeof(median_df), flush=True)
+    print('SHAPE median_df', median_df.shape,  median_df.size, flush=True)
 
     # Filter per genotype
     print(median_df['Genotype'].value_counts())
     median_df = median_df[median_df['Gen'] != 'other']
-    print('SHAPE median_df', median_df.shape, getsizeof(median_df), flush=True)
+    print('SHAPE median_df', median_df.shape,  median_df.size, flush=True)
     # median_df = genotype_filter(median_df, n_genotypes=2)
     median_df = count_filter(median_df, min_count=5, n_genotypes=2)
 
