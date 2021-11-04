@@ -278,20 +278,22 @@ def main(file):
     gen_ls = ['0/0', '0/1', '1/1']
 
     # Reading in chunks
-    chunks = []
-    size=0
-    n=0
-    for chunk in pd.read_csv(file, chunksize=1000000, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
-                                         'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name']):
-        part = chunk[(chunk['Gen'] != 'other') & (chunk['SNP'].isin(snp_ls)) & (chunk['Genotype'].isin(gen_ls))]
-        chunks.append(part)
-        size = part.size + size
-        n += 1
-        print(n, size, flush=True)
-
-    all_df = pd.concat(chunks)
-    all_df.to_csv('Filtered_nano_bam_files_all_samples.csv', index=False, mode='w')
-    del chunks
+    # chunks = []
+    # size=0
+    # n=0
+    # for chunk in pd.read_csv(file, chunksize=1000000, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
+    #                                      'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name']):
+    #     part = chunk[(chunk['Gen'] != 'other') & (chunk['SNP'].isin(snp_ls)) & (chunk['Genotype'].isin(gen_ls))]
+    #     chunks.append(part)
+    #     size = part.size + size
+    #     n += 1
+    #     print(n, size, flush=True)
+    #
+    # all_df = pd.concat(chunks)
+    # all_df.to_csv('Filtered_nano_bam_files_all_samples.csv', index=False, mode='w')
+    # del chunks
+    all_df = pd.read_table(file, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
+                                         'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name'])
 
     # QUESTION: Dropping outliers ?
     print('SHAPE all_df', all_df.shape, all_df.size)
@@ -313,31 +315,31 @@ def main(file):
     median_df['Genotype_dum'] = median_df['Genotype'].replace({'0/0': 0, '0/1': 1, '1/1': 2})
 
     # STATS
-    for unit in ['cpg', 'SNP']:
-        stat = run_stat(median_df, unit=unit, var='Genotype', measure='log_lik_ratio')
-
-        # Special plot (kinda MannHattan plot)
-        stat = stat.reset_index()
-        stat['-log10'] = np.log10(stat['Spearman correlation Genotype p-value'].astype(float)) * (-1)
-        stat[['CHR', 'POS']] = stat['index'].str.split(':', expand=True)[[0, 1]].astype(int)
-        stat = stat.sort_values('CHR')
-        stat['CHR'] = stat['CHR'].astype('category')
-        g = sns.relplot(kind='scatter', data=stat, x='index',
-            y='-log10', aspect=4, hue='CHR', cmap='Spectral', legend=True)
-        g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()['index'].unique(),
-            xticklabels=stat['CHR'].unique())
-        g.savefig(f'-log10_Spearman_pvalue-{unit}.png')
-
-        g1 = sns.relplot(kind='scatter', data=stat, y='diff_means_altVSref', x='Spearman correlation Genotype rho')
-        g1.savefig(f'Diff_meansVSrho_{unit}.png')
-        del stat
-
-        # Stats heterozygotes
-        stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
-            measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
-        g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho')
-        g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes.png')
-        del stat_het
+    # for unit in ['cpg', 'SNP']:
+    #     stat = run_stat(median_df, unit=unit, var='Genotype', measure='log_lik_ratio')
+    #
+    #     # Special plot (kinda MannHattan plot)
+    #     stat = stat.reset_index()
+    #     stat['-log10'] = np.log10(stat['Spearman correlation Genotype p-value'].astype(float)) * (-1)
+    #     stat[['CHR', 'POS']] = stat['index'].str.split(':', expand=True)[[0, 1]].astype(int)
+    #     stat = stat.sort_values('CHR')
+    #     stat['CHR'] = stat['CHR'].astype('category')
+    #     g = sns.relplot(kind='scatter', data=stat, x='index',
+    #         y='-log10', aspect=4, hue='CHR', cmap='Spectral', legend=True)
+    #     g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()['index'].unique(),
+    #         xticklabels=stat['CHR'].unique())
+    #     g.savefig(f'-log10_Spearman_pvalue-{unit}.png')
+    #
+    #     g1 = sns.relplot(kind='scatter', data=stat, y='diff_means_altVSref', x='Spearman correlation Genotype rho')
+    #     g1.savefig(f'Diff_meansVSrho_{unit}.png')
+    #     del stat
+    #
+    #     # Stats heterozygotes
+    #     stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
+    #         measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
+    #     g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho')
+    #     g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes.png')
+    #     del stat_het
 
     # PLOTS
     scatter_with_unique_cpg(median_df, huevar='Genotype',
