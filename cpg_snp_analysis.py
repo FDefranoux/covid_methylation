@@ -292,8 +292,7 @@ def main(file):
     # all_df = pd.concat(chunks)
     # all_df.to_csv('Filtered_nano_bam_files_all_samples.csv', index=False, mode='w')
     # del chunks
-    all_df = pd.read_table(file, usecols=['cpg', 'SNP', 'phenotype', 'Genotype',
-                                         'name', 'log_lik_ratio', 'CHR', 'Gen', 'read_name'])
+    all_df = pd.read_table(file)
 
     # QUESTION: Dropping outliers ?
     print('SHAPE all_df', all_df.shape, all_df.size)
