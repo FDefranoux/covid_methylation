@@ -62,7 +62,7 @@ def outliers(df, thresh_zscore=3):
     df_zscore = df.select_dtypes(include=['float']).apply(zscore)
     outliers = df_zscore[abs(df_zscore) > thresh_zscore].dropna(
         how='all').index.tolist()
-    print(f'Ouliers rows: {len(outliers)}')
+    print(f'Ouliers rows: {len(outliers)}', flush=True)
     return df.drop(outliers, axis=0)
 
 
@@ -326,7 +326,7 @@ def main(file):
 
     # STATS
     median_df['Genotype_dum'] = median_df['Genotype'].replace({'0/0': 0, '0/1': 1, '1/1': 2})
-    for unit in ['cpg', 'SNP']:
+    for unit in ['cpg']:
         stat = run_stat(median_df, unit=unit, var='Genotype', measure='log_lik_ratio')
 
         # Special plot (kinda MannHattan plot)
@@ -337,29 +337,33 @@ def main(file):
         stat['CHR'] = stat['CHR'].astype('category')
         stat['cutoff'] = -1 * np.log10(0.01/stat.shape[0])
         print('\n SNP ABOVE CUTOFF')
-        print(stat[stat['Spearman correlation Genotype p-value'] > stat['cutoff']])
+        print(stat[stat['Spearman correlation Genotype p-value'] > stat['cutoff']], flush=True)
         g = sns.FacetGrid(stat, aspect=4, height=4, palette='Spectral',
                           margin_titles=True)
         g.map(sns.lineplot,'index', 'cutoff', hue=None)
         g.map_dataframe(sns.scatterplot, 'index', '-log10', hue='CHR', legend=True)
-        g.savefig(f'-log10_Spearman_pvalue-{unit}.png')
         g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()['index'].unique(),
-            xticklabels=stat['CHR'].unique(), yscale='log')
-        g.savefig(f'-log10_Spearman_pvalue-{unit}_ylogscale.png')
+            xticklabels=stat['CHR'].unique())
+        g.savefig(f'-log10_Spearman_pvalue_{unit}.png')
         del stat, g
 
         # Stats heterozygotes
         stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
             measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
-        g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho')
-        g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes.png')
+        g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho', hue='index')
+        g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes_colorSNP.png')
         del stat_het, g1
 
     # # PLOTS
-    scatter_with_unique_cpg(median_df, huevar='Gen',
-                            colvar=None, xvar='cpg', yvar='log_lik_ratio')
+    # scatter_with_unique_cpg(median_df, huevar='Gen',
+    #                         colvar=None, xvar='cpg', yvar='log_lik_ratio')
 
     # Violinplot only for the cpg
+    violinplot(median_df[median_df['Genotype'] == '0/1'].sort_values(
+        by=['CHR', 'SNP', 'Genotype']), title_supp='_heterozygotes', yvar='SNP',
+        xvar='log_lik_ratio', huevar='Gen', colvar=None)
+    violinplot(median_df.sort_values(by=['CHR','SNP', 'Genotype']), title_supp='_best_pval', yvar='SNP',
+        xvar='log_lik_ratio', huevar='Genotype', colvar=None)
     violinplot(median_df[median_df['Genotype'] == '0/1'].sort_values(
         by=['CHR', 'cpg', 'Genotype']), title_supp='_heterozygotes', yvar='cpg',
         xvar='log_lik_ratio', huevar='Gen', colvar=None)
