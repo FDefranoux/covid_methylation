@@ -293,6 +293,7 @@ def main(file):
     # all_df.to_csv('Filtered_nano_bam_files_all_samples.csv', index=False, mode='w')
     # del chunks
     all_df = pd.read_csv(file)
+    all_df = all_df[(all_df['SNP'].isin(snp_ls)) & (all_df['Gen'] != 'other') & (all_df['Genotype'].isin(gen_ls))]
 
     # QUESTION: Dropping outliers ?
     print('SHAPE all_df', all_df.shape, all_df.size)
@@ -310,10 +311,9 @@ def main(file):
     # median_df = genotype_filter(median_df, n_genotypes=2)
     median_df = count_filter(median_df, min_count=5, n_genotypes=2)
 
-    # Filter per quantity
-    median_df['Genotype_dum'] = median_df['Genotype'].replace({'0/0': 0, '0/1': 1, '1/1': 2})
 
     # STATS
+    # median_df['Genotype_dum'] = median_df['Genotype'].replace({'0/0': 0, '0/1': 1, '1/1': 2})
     # for unit in ['cpg', 'SNP']:
     #     stat = run_stat(median_df, unit=unit, var='Genotype', measure='log_lik_ratio')
     #
@@ -331,27 +331,29 @@ def main(file):
     #
     #     g1 = sns.relplot(kind='scatter', data=stat, y='diff_means_altVSref', x='Spearman correlation Genotype rho')
     #     g1.savefig(f'Diff_meansVSrho_{unit}.png')
-    #     del stat
+    #     del stat, g1, g
     #
     #     # Stats heterozygotes
     #     stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
     #         measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
     #     g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho')
     #     g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes.png')
-    #     del stat_het
+    #     del stat_het, g1
 
-    # PLOTS
-    scatter_with_unique_cpg(median_df, huevar='Genotype',
-                            colvar=None, xvar='SNP', yvar='log_lik_ratio')
+    # # PLOTS
+    # scatter_with_unique_cpg(median_df, huevar='Genotype',
+    #                         colvar=None, xvar='SNP', yvar='log_lik_ratio')
     scatter_with_unique_cpg(median_df, huevar='Gen',
+                            colvar=None, xvar='cpg', yvar='log_lik_ratio')
+    scatter_with_unique_cpg(median_df, huevar='Genotype',
                             colvar=None, xvar='cpg', yvar='log_lik_ratio')
 
     # Violinplot only for the SNP
     violinplot(median_df[median_df['Genotype'] == '0/1'].sort_values(
-        by=['CHR', 'SNP', 'Genotype']), title_supp='_heterozygotes', yvar='SNP',
+        by=['CHR', 'SNP', 'Genotype']), title_supp='_heterozygotes', yvar='cpg',
         xvar='log_lik_ratio', huevar='Gen', colvar=None)
-    violinplot(median_df.sort_values(by=['CHR', 'SNP', 'Genotype']), title_supp='_best_pval', yvar='SNP',
-        xvar='log_lik_ratio', huevar='Genotype', colvar=None)
+    # violinplot(median_df.sort_values(by=['CHR', 'SNP', 'Genotype']), title_supp='_best_pval', yvar='SNP',
+    #     xvar='log_lik_ratio', huevar='Genotype', colvar=None)
     violinplot(median_df.sort_values(by=['CHR','cpg', 'Genotype']), title_supp='_best_pval', yvar='cpg',
         xvar='log_lik_ratio', huevar='Genotype', colvar=None)
 
