@@ -161,6 +161,7 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title=''):
         spear = spearmanr(u_df[measure], u_df[var])
 
         # Results
+        results.loc[u,'SNP'] =str(u_df['SNP'].unique())[2:-2]
         results.loc[u,count_dict.keys()] = count_dict.values()
         results.loc[u, 'diff_means_altVSref'] = diff_means
         results.loc[u, f'Spearman correlation {var} p-value'] = spear[1]
@@ -337,7 +338,7 @@ def main(file):
         stat['CHR'] = stat['CHR'].astype('category')
         stat['cutoff'] = -1 * np.log10(0.01/stat.shape[0])
         print('\n SNP ABOVE CUTOFF')
-        print(stat[stat['Spearman correlation Genotype p-value'] > stat['cutoff']], flush=True)
+        print(stat[stat['-log10'] > stat['cutoff']], flush=True)
         g = sns.FacetGrid(stat, aspect=4, height=4, palette='Spectral',
                           margin_titles=True)
         g.map(sns.lineplot,'index', 'cutoff', hue=None)
@@ -350,7 +351,7 @@ def main(file):
         # Stats heterozygotes
         stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
             measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
-        g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho', hue='index')
+        g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho', hue='SNP')
         g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes_colorSNP.png')
         del stat_het, g1
 
