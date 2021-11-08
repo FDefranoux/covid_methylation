@@ -345,7 +345,7 @@ def main(file):
         g.map_dataframe(sns.scatterplot, 'index', '-log10', hue='CHR', legend=True)
         g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()['index'].unique(),
             xticklabels=stat['CHR'].unique())
-        g.savefig(f'-log10_Spearman_pvalue_{unit}.png')
+        g.savefig(f'minuslog10_Spearman_pvalue_{unit}.png')
         del stat, g
 
         # Stats heterozygotes
