@@ -351,8 +351,10 @@ def main(file):
         # Stats heterozygotes
         stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
             measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
-        g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho', hue='SNP')
-        g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes_colorSNP.png')
+        stat_het = stat_het.reset_index()
+        stat_het['CHR'] = stat_het['index'].str.split(':', expand=True)[0].astype(int)
+        g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho', hue='CHR')
+        g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes_colorCHR.png')
         del stat_het, g1
 
     # # PLOTS
@@ -360,16 +362,32 @@ def main(file):
     #                         colvar=None, xvar='cpg', yvar='log_lik_ratio')
 
     # Violinplot only for the cpg
-    violinplot(median_df[median_df['Genotype'] == '0/1'].sort_values(
-        by=['CHR', 'SNP', 'Genotype']), title_supp='_heterozygotes', yvar='SNP',
-        xvar='log_lik_ratio', huevar='Gen', colvar=None)
-    violinplot(median_df.sort_values(by=['CHR','SNP', 'Genotype']), title_supp='_best_pval', yvar='SNP',
-        xvar='log_lik_ratio', huevar='Genotype', colvar=None)
-    violinplot(median_df[median_df['Genotype'] == '0/1'].sort_values(
-        by=['CHR', 'cpg', 'Genotype']), title_supp='_heterozygotes', yvar='cpg',
-        xvar='log_lik_ratio', huevar='Gen', colvar=None)
-    violinplot(median_df.sort_values(by=['CHR','cpg', 'Genotype']), title_supp='_best_pval', yvar='cpg',
-        xvar='log_lik_ratio', huevar='Genotype', colvar=None)
+    for snp in snp_ls:
+        try:
+            violinplot(median_df[(median_df['SNP'] == snp)],
+                title_supp=f'_{snp}', yvar='cpg',
+                xvar='log_lik_ratio', huevar='Genotype', colvar=None)
+            violinplot(median_df[(median_df['Genotype'] == '0/1') & (median_df['SNP'] == snp)],
+                title_supp=f'_heterozygotes_{snp}', yvar='cpg',
+                xvar='log_lik_ratio', huevar='Gen', colvar=None)
+            violinplot(median_df[(median_df['SNP'] == snp)],
+                title_supp=f'_{snp}', yvar='SNP',
+                xvar='log_lik_ratio', huevar='Genotype', colvar=None)
+            violinplot(median_df[(median_df['Genotype'] == '0/1') & (median_df['SNP'] == snp)],
+                title_supp=f'_heterozygotes_{snp}', yvar='SNP',
+                xvar='log_lik_ratio', huevar='Gen', colvar=None)
+        except:
+            pass
+    # violinplot(median_df[median_df['Genotype'] == '0/1'].sort_values(
+    #     by=['CHR', 'SNP', 'Genotype']), title_supp='_heterozygotes', yvar='SNP',
+    #     xvar='log_lik_ratio', huevar='Gen', colvar=None)
+    # violinplot(median_df.sort_values(by=['CHR','SNP', 'Genotype']), title_supp='_best_pval', yvar='SNP',
+    #     xvar='log_lik_ratio', huevar='Genotype', colvar=None)
+    # violinplot(median_df[median_df['Genotype'] == '0/1'].sort_values(
+    #     by=['CHR', 'cpg', 'Genotype']), title_supp='_heterozygotes', yvar='cpg',
+    #     xvar='log_lik_ratio', huevar='Gen', colvar=None)
+    # violinplot(median_df.sort_values(by=['CHR','cpg', 'Genotype']), title_supp='_best_pval', yvar='cpg',
+    #     xvar='log_lik_ratio', huevar='Genotype', colvar=None)
 
 
 if __name__ == '__main__':
