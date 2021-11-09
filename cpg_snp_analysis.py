@@ -133,7 +133,7 @@ def multiple_mann_whitney(df, col, measure, title=''):
     return mwu
 
 
-def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title=''):
+def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', pval_spearman=0.01):
     # TODO: Add paired ttest/wilcoxon one
     # TODO: start analysis with phenotype
     df = df.copy()
@@ -162,11 +162,20 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title=''):
         # Spearman correlation
         spear = spearmanr(u_df[measure], u_df[var])
 
+        # Pairwise tests
+        try:
+            paired_t = pg.pairwise_ttests(dv=measure, between=var, data=u_df)
+            paired_w = pg.pairwise_ttests(dv=measure, between=var, data=u_df, parametric=False)
+            print(paired_t.to_markdown(), paired_w.to_markdown())
+        except:
+            paired_t = pd.DataFrame()
+            paired_w = pd.DataFrame()
+
         # Results
         results.loc[u,'SNP'] =str(u_df['SNP'].unique())[2:-2]
         results.loc[u,count_dict.keys()] = count_dict.values()
         results.loc[u, 'diff_means_altVSref'] = diff_means
-        results.loc[u, f'Spearman correlation {var} p-value'] = spear[1]
+        results.loc[u, f'Spearman correlation {var} p_value'] = spear[1]
         results.loc[u, f'Spearman correlation {var} rho'] = spear[0]
         if not lm.empty:
             try:
@@ -177,43 +186,51 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title=''):
                 pass
         if not mwu.empty:
             results.loc[u, mwu.index] = mwu['p-val']
-    results.sort_values(f'Spearman correlation {var} p-value').to_csv(
+    results['minus_log10'] = np.log10(results[
+        f'Spearman correlation {var} p_value'].astype(float)) * (-1)
+    results = results.reset_index().rename(columns={'index':unit})
+    results['cutoff'] = -1 * np.log10(pval_spearman/results.shape[0])
+    print('\n SNP ABOVE CUTOFF')
+    print(results[results['minus_log10'] > results['cutoff']][unit].tolist(),
+          flush=True)
+    results.sort_values(f'Spearman correlation {var} p_value').to_csv(
         f'Stat_Analysis_{measure}VS{var}_per_{unit}_{suppl_title}.csv')
     return results
 
 
 ### PLOTS ###
 def violinplot(df, title_supp='', yvar='cpg', xvar='log_lik_ratio', huevar='Genotype', colvar='phenotype'):
-    n_snp = df[yvar].nunique()
+    n_snp = df[xvar].nunique()
     print(n_snp)
     if n_snp < 10:
         g_chr = sns.catplot(data=df, kind='violin',
                             y=yvar, x=xvar, hue=huevar,
                             col=colvar, height=6,
-                            aspect=0.9, orient='h',
+                            aspect=0.9, orient='v',
                             inner="quartile", linewidth=1.5,
                             sharex=False, sharey=False)
     elif n_snp < 50:
         g_chr = sns.catplot(data=df, kind='violin',
                             y=yvar, x=xvar, hue=huevar,
                             col=colvar, height=25,
-                            aspect=.7, orient='h',
+                            aspect=.7, orient='v',
                             inner="quartile", linewidth=1.5,
                             sharex=False, sharey=False)
     elif n_snp < 500:
         g_chr = sns.catplot(data=df, kind='violin',
                             y=yvar, x=xvar, hue=huevar,
                             col=colvar, height=45,
-                            aspect=.15, orient='h',
+                            aspect=.15, orient='v',
                             inner="quartile", linewidth=1,
                             sharex=False, sharey=False)
     else:
         g_chr = sns.catplot(data=df, kind='violin',
                             y=yvar, x=xvar, hue=huevar,
                             col=colvar, height=45,
-                            aspect=.1, orient='h',
+                            aspect=.1, orient='v',
                             inner="quartile", linewidth=1,
                             sharex=False, sharey=False)
+    plt.title(f'{title_supp}')
     g_chr.savefig(
         f'violinplot_median_all_{yvar}_{xvar}_distribution_{title_supp}.png')
 
@@ -283,6 +300,34 @@ def linear_reg_plot(df, var='', unit='', plot=False, title_suppl=''):
     plt.title(unit + ' ' + u)
 
 
+def spearman_correlation_plot(stat_df, unit='cpg', n_site=2):
+        stat = stat_df.copy()
+        stat[['CHR', 'POS']] = stat[unit].str.split(':', expand=True)[[0, 1]].astype(int)
+        stat = stat.sort_values('CHR')
+        stat['CHR'] = stat['CHR'].astype('category')
+        best_cpg = stat.sort_values('minus_log10').groupby(['CHR']).head(n_site)[unit].tolist()
+        stat.loc[(stat[unit].isin(best_cpg)) &  (stat['minus_log10'] > stat['cutoff']), f'{unit}_best'] = stat.loc[stat['cpg'].isin(best_cpg), 'cpg']
+        stat.loc[stat[f'{unit}_best'].isna(), f'{unit}_best'] = ' '
+        g = sns.FacetGrid(stat, aspect=4, height=4, palette='Spectral',
+                          margin_titles=True)
+        g.map(sns.lineplot,unit, 'cutoff', hue=None)
+        g.map_dataframe(sns.scatterplot, unit, 'minus_log10', hue='CHR', legend=True)
+        g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()[unit].unique(),
+            xticklabels=stat['CHR'].unique())
+        for row in stat.itertuples():
+            g.axes[0,0].text(row.cpg, row.minus_log10 + 0.5, row.cpg_best, horizontalalignment='left')
+        g.savefig(f'minuslog10_Spearman_pvalue_{unit}.png')
+
+
+def spearmanRho_diffmean_plot(stat, unit='cpg', hue_var='CHR', col_var=None):
+    stat = stat_het.copy()
+    stat = stat.reset_index().rename(columns={unit:unit})
+    stat['CHR'] = stat[unit].str.split(':', expand=True)[0].astype('category')
+    g1 = sns.relplot(kind='scatter', data=stat, y='diff_means_altVSref',
+                     x='Spearman correlation Gen rho', hue=hue_var, col=col_var)
+    g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes_colorCHR.png')
+
+
 # MAIN
 def main(file):
     # Selection of the SNPs
@@ -293,16 +338,15 @@ def main(file):
 
     # Opening file
     all_df = pd.read_csv(file)
-    all_df = all_df[(all_df['SNP'].isin(snp_ls)) & (all_df['Gen'] != 'other') & (all_df['Genotype'].isin(gen_ls))]
+    all_df = all_df[(all_df['SNP'].isin(snp_ls))
+        & (all_df['Gen'] != 'other')
+        & (all_df['Genotype'].isin(gen_ls))]
 
-    # QUESTION: Dropping outliers ?
-    print('SHAPE all_df', all_df.shape, all_df.size)
     # Median over the read_name with same Allele calling
     median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
         'SNP', 'Genotype', 'Gen']).median().reset_index()
     del all_df
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
-    print('SHAPE median_df', median_df.shape,  median_df.size, flush=True)
 
     # Filter per genotype
     print(median_df['Genotype'].value_counts())
@@ -315,96 +359,42 @@ def main(file):
     median_new = outliers(median_df, thresh_zscore=3)
 
     # STATS
-    # median_df['Genotype_dum'] = median_df['Genotype'].replace({'0/0': 0, '0/1': 1, '1/1': 2})
-    # for unit in ['cpg']:
-    #     stat = run_stat(median_df, unit=unit, var='Genotype', measure='log_lik_ratio')
-    #
-    #     # Special plot (kinda MannHattan plot)
-    #     # TODO: Select out the smalest counts (<3 ou 5)
-    #     # TODO: Select out according to p_value(perform cut and check who is where ?)
-    #     # TODO: put in function
-    #     stat = stat.reset_index()
-    #     stat['-log10'] = np.log10(stat['Spearman correlation Genotype p-value'].astype(float)) * (-1)
-    #     stat[['CHR', 'POS']] = stat['index'].str.split(':', expand=True)[[0, 1]].astype(int)
-    #     stat = stat.sort_values('CHR')
-    #     stat['CHR'] = stat['CHR'].astype('category')
-    #     stat['cutoff'] = -1 * np.log10(0.01/stat.shape[0])
-    #     print('\n SNP ABOVE CUTOFF')
-    #     print(stat[stat['-log10'] > stat['cutoff']]['index'].tolist(), flush=True)
-    #     # TODO: Add the label of the highest SNP in each chr
-    #     g = sns.FacetGrid(stat, aspect=4, height=4, palette='Spectral',
-    #                       margin_titles=True)
-    #     g.map(sns.lineplot,'index', 'cutoff', hue=None)
-    #     g.map_dataframe(sns.scatterplot, 'index', '-log10', hue='CHR', legend=True)
-    #     g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()['index'].unique(),
-    #         xticklabels=stat['CHR'].unique())
-    #     g.savefig(f'minuslog10_Spearman_pvalue_{unit}.png')
-    #     del stat, g
-    #
-    #     # Stats heterozygotes
-    #     stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
-    #         measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
-    #     stat_het = stat_het.reset_index()
-    #     stat_het['CHR'] = stat_het['index'].str.split(':', expand=True)[0].astype('category')
-    #     g1 = sns.relplot(kind='scatter', data=stat_het, y='diff_means_altVSref', x='Spearman correlation Gen rho', hue='CHR')
-    #     g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes_colorCHR.png')
-    #     del stat_het, g1
+    median_df['Genotype_dum'] = median_df['Genotype'].replace(
+        {'0/0': 0, '0/1': 1, '1/1': 2})
+    unit = 'cpg'
+    stat = run_stat(median_df, unit=unit, var='Genotype',
+                    measure='log_lik_ratio')
+    spearman_correlation_plot(stat, unit=unit, n_site=2)
+    del stat
+    # TODO: Select out the smalest counts (<3 ou 5)
+    # TODO: Select out according to p_value(perform cut and check who is where ?)
 
-    # # PLOTS
+    # Stats heterozygotes
+    stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
+        measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
+    stat_het['cut_log'] = pd.cut(x=stat['minus_log10'], bins=4)
+    high_counts = stat_het.filter(
+        regex='Counts*')[stat_het.filter(regex='Counts*')>5].dropna().index
+    spearmanRho_diffmean_plot(stat_het.loc[high_counts], unit='cpg', col_var='cut_log')
+    del stat_het, g1
+
+    # PLOTS
     # scatter_with_unique_cpg(median_df, huevar='Gen',
     #                         colvar=None, xvar='cpg', yvar='log_lik_ratio')
 
     # Violinplot only for the cpg
     # TODO: Fix Violin plot (all the same when coming back from the cluster)
-    for snp in snp_ls[: 2]:
-        print(median_df[(median_df['SNP'] == snp)].shape)
-        print(median_df[(median_df['SNP'] == snp)].nunique())
+    for snp in snp_ls:
         print(median_df[(median_df['SNP'] == snp)].describe())
         try:
-            # violinplot(median_df[(median_df['SNP'] == snp)],
-            #     title_supp=f'_{snp}', yvar='cpg',
-            #     xvar='log_lik_ratio', huevar='Genotype', colvar=None)
-            # violinplot(median_df[(median_df['Genotype'] == '0/1') & (median_df['SNP'] == snp)],
-            #     title_supp=f'_heterozygotes_{snp}', yvar='cpg',
-            #     xvar='log_lik_ratio', huevar='Gen', colvar=None)
             violinplot(median_df[(median_df['SNP'] == snp)],
-                title_supp=f'_{snp}', yvar='SNP',
-                xvar='log_lik_ratio', huevar='Genotype', colvar=None)
+                title_supp=f'{snp}', xvar='Genotype',
+                yvar='log_lik_ratio', huevar=None, colvar=None)
             violinplot(median_df[(median_df['Genotype'] == '0/1') & (median_df['SNP'] == snp)],
-                title_supp=f'_heterozygotes_{snp}', yvar='SNP',
-                xvar='log_lik_ratio', huevar='Gen', colvar=None)
+                title_supp=f'heterozygotes_{snp}', xvar='Gen',
+                yvar='log_lik_ratio', huevar=None, colvar=None)
         except:
             print(f'ERROR WITH SNP {snp}')
-    print('\n\n MEDIAN NEW (outliers removal !)')
-    for snp in snp_ls[: 2]:
-        print(median_new[(median_new['SNP'] == snp)].shape)
-        print(median_new[(median_new['SNP'] == snp)].nunique())
-        print(median_new[(median_new['SNP'] == snp)].describe())
-        try:
-            # violinplot(median_new[(median_new['SNP'] == snp)],
-            #     title_supp=f'_{snp}', yvar='cpg',
-            #     xvar='log_lik_ratio', huevar='Genotype', colvar=None)
-            # violinplot(median_new[(median_new['Genotype'] == '0/1') & (median_new['SNP'] == snp)],
-            #     title_supp=f'_heterozygotes_{snp}', yvar='cpg',
-            #     xvar='log_lik_ratio', huevar='Gen', colvar=None)
-            violinplot(median_new[(median_new['SNP'] == snp)],
-                title_supp=f'_{snp}', yvar='SNP',
-                xvar='log_lik_ratio', huevar='Genotype', colvar=None)
-            violinplot(median_new[(median_new['Genotype'] == '0/1') & (median_new['SNP'] == snp)],
-                title_supp=f'_heterozygotes_{snp}_new', yvar='SNP',
-                xvar='log_lik_ratio', huevar='Gen', colvar=None)
-        except:
-            print(f'ERROR WITH SNP {snp}')
-    # violinplot(median_df[median_df['Genotype'] == '0/1 '].sort_values(
-    #     by=['CHR', 'SNP', 'Genotype']), title_supp='_heterozygotes', yvar='SNP',
-    #     xvar='log_lik_ratio', huevar='Gen', colvar=None)
-    # violinplot(median_df.sort_values(by=['CHR','SNP', 'Genotype']), title_supp='_best_pval', yvar='SNP',
-    #     xvar='log_lik_ratio', huevar='Genotype', colvar=None)
-    # violinplot(median_df[median_df['Genotype'] == '0/1'].sort_values(
-    #     by=['CHR', 'cpg', 'Genotype']), title_supp='_heterozygotes', yvar='cpg',
-    #     xvar='log_lik_ratio', huevar='Gen', colvar=None)
-    # violinplot(median_df.sort_values(by=['CHR','cpg', 'Genotype']), title_supp='_best_pval', yvar='cpg',
-    #     xvar='log_lik_ratio', huevar='Genotype', colvar=None)
 
 
 if __name__ == '__main__':
