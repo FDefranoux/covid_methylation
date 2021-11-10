@@ -137,8 +137,8 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', pval_
     # TODO: Add paired ttest/wilcoxon one
     # TODO: start analysis with phenotype
     df = df.copy()
-    dict_dum = {x:i for i,x in enumerate(median_df[var].unique())}
-    median_df[f'{var}_dum'] = median_df[var].replace(dict_dum)
+    dict_dum = {x:i for i,x in enumerate(df[var].unique())}
+    df[f'{var}_dum'] = df[var].replace(dict_dum)
     results = pd.DataFrame(index=df[unit].unique())
     for u in df[unit].unique():
         u_df = df[df[unit] == u]
@@ -372,8 +372,6 @@ def main(file, dir_out='results_cpg_snp_analysis'):
                     measure='log_lik_ratio')
     spearman_correlation_plot(stat, unit=unit, n_site=2)
     del stat
-    # TODO: Select out the smalest counts (<3 ou 5)
-    # TODO: Select out according to p_value(perform cut and check who is where ?)
 
     # Stats heterozygotes
     stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
@@ -381,6 +379,7 @@ def main(file, dir_out='results_cpg_snp_analysis'):
     stat_het['cut_log'] = pd.cut(x=stat_het['minus_log10'], bins=4)
     high_counts = stat_het.filter(
         regex='Counts*')[stat_het.filter(regex='Counts*')>5].dropna().index
+    # TODO: Check if you should not just NaN the rows with counts too low for one Genotype
     spearmanRho_diffmean_plot(stat_het.loc[high_counts], unit='cpg', col_var='cut_log')
     del stat_het
 
