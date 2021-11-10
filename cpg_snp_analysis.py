@@ -338,12 +338,13 @@ def spearmanRho_diffmean_plot(stat, unit='cpg', hue_var='CHR', col_var=None):
     stat = stat.reset_index().rename(columns={unit:unit})
     stat['CHR'] = stat[unit].str.split(':', expand=True)[0].astype('category')
     g1 = sns.relplot(kind='scatter', data=stat, y='diff_means_altVSref',
-                     x='Spearman correlation Gen rho', hue=hue_var, col=col_var)
-    g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes_colorCHR.png')
+                     x='Spearman correlation Gen rho', hue=hue_var, col=col_var, col_wrap=3)
+    g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes_sepCHR.png')
 
 
 # MAIN
 def main(file, dir_out='results_cpg_snp_analysis'):
+    # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
     # Selection of the SNPs
     # TODO: Check selection of random/control SNPs with TOM
     snp_ls = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p',
@@ -380,7 +381,7 @@ def main(file, dir_out='results_cpg_snp_analysis'):
     high_counts = stat_het.filter(
         regex='Counts*')[stat_het.filter(regex='Counts*')>5].dropna().index
     # TODO: Check if you should not just NaN the rows with counts too low for one Genotype
-    spearmanRho_diffmean_plot(stat_het.loc[high_counts], unit='cpg', col_var='cut_log')
+    spearmanRho_diffmean_plot(stat_het.loc[high_counts], unit='cpg', col_var='SNP')
     del stat_het
 
     # PLOTS
@@ -389,19 +390,20 @@ def main(file, dir_out='results_cpg_snp_analysis'):
 
     # Violinplot only for the cpg
     # TODO: Fix Violin plot (all the same when coming back from the cluster)
-    for snp in snp_ls[:3]:
-        snp_df = median_df[median_df['SNP'] == snp].copy()
+    for snp in snp_ls:
+        snp_df = median_new[median_new['SNP'] == snp].copy()
+        print(snp_df.shape)
         try:
-            g = sns.catplot(data=snp_df, kind='violin', y='log_lik_ratio',
-                            x='Genotype', orient='v',
+            g = sns.catplot(data=snp_df, y='log_lik_ratio',
+                            x='Genotype', orient='v', kind= 'strip',
                             height=6, aspect=0.9, hue='phenotype',
                             inner="quartile", sharex=False, sharey=False)
             g.savefig(f'violinplot_median_all_ratio_GenPhen_distribution_{snp}.png')
-            g1 = sns.catplot(data=snp_df[snp_df['Genottpe'] == '0/1'],
-                            kind='violin', y='log_lik_ratio', x='Gen',
+            g1 = sns.catplot(data=snp_df[snp_df['Genotype'] == '0/1'],
+                            y='log_lik_ratio', x='Gen', kind= 'strip',
                             height=6, aspect=0.9, hue='phenotype',
                             inner="quartile", sharex=False, sharey=False)
-            g1.savefig(f'violinplot_median_all_ratio_GenPhen_distribution_{snp}.png')
+            g1.savefig(f'violinplot_median_all_ratio_GenPhen_distribution_{snp}_het.png')
             # violinplot(data=median_df[(median_df['SNP'] == snp)],
             #     title_supp=f'{snp}', xvar='Genotype',
             #     yvar='log_lik_ratio', huevar=None, colvar=None)
