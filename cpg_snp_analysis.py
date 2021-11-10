@@ -336,7 +336,7 @@ def spearman_correlation_plot(stat_df, unit='cpg', n_site=2, out_dir=''):
             for row in stat.itertuples():
                 g.axes[0,0].text(row.cpg, row.minus_log10 + 0.5, row.cpg_best,
                     horizontalalignment='left')
-        else:
+        except:
             print('couldn print best points')
         g.savefig(f'{out_dir}/minuslog10_Spearman_pvalue_{unit}.png')
 
