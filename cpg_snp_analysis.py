@@ -6,10 +6,13 @@ import pingouin as pg
 from sklearn.linear_model import LinearRegression
 from scipy.stats import spearmanr
 import numpy as np
+import os
 import sys
 
 file = 'Filtered_nano_bam_files_all_samples.csv'
 file_snp = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
+dir_out='results_cpg_snp_analysis'
+unit='cpg'
 
 
 def select_SNP_per_pvalue(file, pval_col, dist_bp=500000):
@@ -133,7 +136,7 @@ def multiple_mann_whitney(df, col, measure, title=''):
     return mwu
 
 
-def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', pval_spearman=0.01):
+def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', out_dir='', pval_spearman=0.01):
     # TODO: Add paired ttest/wilcoxon one
     # TODO: start analysis with phenotype
     df = df.copy()
@@ -197,16 +200,16 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', pval_
         f'Spearman correlation {var} p_value'].astype(float)) * (-1)
     results = results.reset_index().rename(columns={'index':unit})
     results['cutoff'] = -1 * np.log10(pval_spearman/results.shape[0])
-    print('\n SNP ABOVE CUTOFF')
+    print(f'\n SNP ABOVE CUTOFF {suppl_title}')
     print(results[results['minus_log10'] > results['cutoff']][unit].tolist(),
           flush=True)
     results.sort_values(f'Spearman correlation {var} p_value').to_csv(
-        f'Stat_Analysis_{measure}VS{var}_per_{unit}_{suppl_title}.csv')
+        f'{out_dir}/Stat_Analysis_{measure}VS{var}_per_{unit}_{suppl_title}.csv')
     return results
 
 
 ### PLOTS ###
-def violinplot(df, title_supp='', yvar='cpg', xvar='log_lik_ratio', huevar='Genotype', colvar='phenotype'):
+def violinplot(df, title_supp='', yvar='cpg', xvar='log_lik_ratio', huevar='Genotype', colvar='phenotype', out_dir=''):
     n_snp = df[xvar].nunique()
     print(n_snp)
     if n_snp < 10:
@@ -239,10 +242,10 @@ def violinplot(df, title_supp='', yvar='cpg', xvar='log_lik_ratio', huevar='Geno
                             sharex=False, sharey=False)
     plt.title(f'{title_supp}')
     g_chr.savefig(
-        f'violinplot_median_all_{yvar}_{xvar}_distribution_{title_supp}.png')
+        f'{out_dir}/violinplot_median_all_{yvar}_{xvar}_distribution_{title_supp}.png')
 
 
-def ridgeplot(df, chr='', rowvar='cpg', huevar='Genotype', colvar='phenotype', var='log_lik_ratio'):
+def ridgeplot(df, chr='', rowvar='cpg', huevar='Genotype', colvar='phenotype', var='log_lik_ratio', out_dir=''):
     with sns.plotting_context('paper', font_scale=0.1):
         sns.set_theme(style="white", rc={
                       "axes.facecolor": (0, 0, 0, 0), "font.size": 16})
@@ -274,10 +277,10 @@ def ridgeplot(df, chr='', rowvar='cpg', huevar='Genotype', colvar='phenotype', v
         plt.legend(bbox_to_anchor=(0, 2),
                    fontsize='xx-large', facecolor='white')
         g_ridge.savefig(
-            f'rigdeplot_median_all_{rowvar}_{var}_distribution_chr{chr}_color{huevar}.png')
+            f'{out_dir}/rigdeplot_median_all_{rowvar}_{var}_distribution_chr{chr}_color{huevar}.png')
 
 
-def scatter_with_unique_cpg(median_df, huevar='Genotype', colvar='phenotype', xvar='cpg', yvar='log_lik_ratio'):
+def scatter_with_unique_cpg(median_df, huevar='Genotype', colvar='phenotype', xvar='cpg', yvar='log_lik_ratio', out_dir=''):
     n = 0
     median_df = median_df.copy()
     for chr in median_df['CHR'].sort_values().unique():
@@ -294,7 +297,7 @@ def scatter_with_unique_cpg(median_df, huevar='Genotype', colvar='phenotype', xv
     g.set(xlabel="CHR", xticks=median_df['sep'].unique(
         ), xticklabels=median_df['CHR'].unique())
     g.savefig(
-        f'scatterplot_median_all_{yvar}_unique{xvar}_color{huevar}.png')
+        f'{out_dir}/scatterplot_median_all_{yvar}_unique{xvar}_color{huevar}.png')
 
 
 def linear_reg_plot(df, var='', unit='', plot=False, title_suppl=''):
@@ -307,7 +310,7 @@ def linear_reg_plot(df, var='', unit='', plot=False, title_suppl=''):
     plt.title(unit + ' ' + u)
 
 
-def spearman_correlation_plot(stat_df, unit='cpg', n_site=2):
+def spearman_correlation_plot(stat_df, unit='cpg', n_site=2, out_dir=''):
         stat = stat_df.copy()
         stat[['CHR', 'POS']] = stat[unit].str.split(':', expand=True)[[
             0, 1]].astype(int)
@@ -320,6 +323,8 @@ def spearman_correlation_plot(stat_df, unit='cpg', n_site=2):
             f'{unit}_best'] = stat.loc[(stat[unit].isin(best_cpg)) &
                         (stat['minus_log10'] > stat['cutoff']), 'cpg']
         stat.loc[stat[f'{unit}_best'].isna(), f'{unit}_best'] = ' '
+        print(stat[(stat[unit].isin(best_cpg)) &
+                    (stat['minus_log10'] > stat['cutoff'])])
         g = sns.FacetGrid(stat, aspect=4, height=4, palette='Spectral',
                           margin_titles=True)
         g.map(sns.lineplot,unit, 'cutoff', hue=None)
@@ -327,23 +332,28 @@ def spearman_correlation_plot(stat_df, unit='cpg', n_site=2):
             legend=True)
         g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()[unit].unique(),
             xticklabels=stat['CHR'].unique())
-        for row in stat.itertuples():
-            g.axes[0,0].text(row.cpg, row.minus_log10 + 0.5, row.cpg_best,
-                horizontalalignment='left')
-        g.savefig(f'minuslog10_Spearman_pvalue_{unit}.png')
+        try:
+            for row in stat.itertuples():
+                g.axes[0,0].text(row.cpg, row.minus_log10 + 0.5, row.cpg_best,
+                    horizontalalignment='left')
+        else:
+            print('couldn print best points')
+        g.savefig(f'{out_dir}/minuslog10_Spearman_pvalue_{unit}.png')
 
 
-def spearmanRho_diffmean_plot(stat, unit='cpg', hue_var='CHR', col_var=None):
+def spearmanRho_diffmean_plot(stat, unit='cpg', hue_var='CHR', col_var=None, out_dir=''):
     stat = stat.copy()
     stat = stat.reset_index().rename(columns={unit:unit})
     stat['CHR'] = stat[unit].str.split(':', expand=True)[0].astype('category')
     g1 = sns.relplot(kind='scatter', data=stat, y='diff_means_altVSref',
                      x='Spearman correlation Gen rho', hue=hue_var, col=col_var, col_wrap=3)
-    g1.savefig(f'Diff_meansVSrho_{unit}_heterozygotes_sepCHR.png')
+    g1.savefig(f'{out_dir}/Diff_meansVSrho_{unit}_heterozygotes_sepCHR.png')
 
 
 # MAIN
-def main(file, dir_out='results_cpg_snp_analysis'):
+def main(file, dir_out='results_cpg_snp_analysis', unit='cpg'):
+    if not os.path.exists(dir_out):
+        os.makedirs(dir_out)
     # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
     # Selection of the SNPs
     # TODO: Check selection of random/control SNPs with TOM
@@ -368,20 +378,19 @@ def main(file, dir_out='results_cpg_snp_analysis'):
     median_new = outliers(median_df, thresh_zscore=3)
 
     # STATS
-    unit = 'cpg'
     stat = run_stat(median_df, unit=unit, var='Genotype',
-                    measure='log_lik_ratio')
-    spearman_correlation_plot(stat, unit=unit, n_site=2)
+                    measure='log_lik_ratio', out_dir=dir_out)
+    spearman_correlation_plot(stat[stat['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out)
     del stat
 
     # Stats heterozygotes
     stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
-        measure='log_lik_ratio', var='Gen', suppl_title='Het_only')
+        measure='log_lik_ratio', var='Gen', suppl_title='Het_only', out_dir=dir_out)
     stat_het['cut_log'] = pd.cut(x=stat_het['minus_log10'], bins=4)
     high_counts = stat_het.filter(
         regex='Counts*')[stat_het.filter(regex='Counts*')>5].dropna().index
     # TODO: Check if you should not just NaN the rows with counts too low for one Genotype
-    spearmanRho_diffmean_plot(stat_het.loc[high_counts], unit='cpg', col_var='SNP')
+    spearmanRho_diffmean_plot(stat_het.loc[high_counts], unit='cpg', col_var='SNP', out_dir=dir_out)
     del stat_het
 
     # PLOTS
@@ -395,23 +404,17 @@ def main(file, dir_out='results_cpg_snp_analysis'):
         print(snp_df.shape)
         try:
             g = sns.catplot(data=snp_df, y='log_lik_ratio',
-                            x='Genotype', orient='v', kind= 'strip',
+                            x='Genotype', orient='v', kind= 'violin',
                             height=6, aspect=0.9, hue='phenotype',
-                            inner="quartile", sharex=False, sharey=False)
-            g.savefig(f'violinplot_median_all_ratio_GenPhen_distribution_{snp}.png')
-            g1 = sns.catplot(data=snp_df[snp_df['Genotype'] == '0/1'],
-                            y='log_lik_ratio', x='Gen', kind= 'strip',
+                            sharex=False, sharey=False)
+            g.savefig(f'{dir_out}/violinplot_median_all_ratio_GenPhen_distribution_{snp}.png')
+            g1 = sns.catplot(data=snp_df,
+                            y='log_lik_ratio', x='Gen', kind= 'swarm',
                             height=6, aspect=0.9, hue='phenotype',
-                            inner="quartile", sharex=False, sharey=False)
-            g1.savefig(f'violinplot_median_all_ratio_GenPhen_distribution_{snp}_het.png')
-            # violinplot(data=median_df[(median_df['SNP'] == snp)],
-            #     title_supp=f'{snp}', xvar='Genotype',
-            #     yvar='log_lik_ratio', huevar=None, colvar=None)
-            # violinplot(datamedian_df[(median_df['Genotype'] == '0/1') & (median_df['SNP'] == snp)],
-            #     title_supp=f'heterozygotes_{snp}', xvar='Gen',
-            #     yvar='log_lik_ratio', huevar=None, colvar=None)
-        except:
-            print(f'ERROR WITH SNP {snp}')
+                            sharex=False, sharey=False)
+            g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_distribution_{snp}.png')
+        except Exception as err:
+            print(f'ERROR WITH SNP {snp} ', err)
 
 
 if __name__ == '__main__':
