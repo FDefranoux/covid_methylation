@@ -372,13 +372,13 @@ def main(file, dir_out='results_cpg_snp_analysis', unit='cpg'):
     stat_severe = run_stat(median_df[median_df['phenotype'] == 'Severe'],
                             unit=unit, var='Genotype',
                             measure='log_lik_ratio', out_dir=dir_out)
-    spearman_correlation_plot(stat_severe[stat_severe['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out)
+    spearman_correlation_plot(stat_severe[stat_severe['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out, title_supp='Severe')
     del stat_severe
 
     stat_mild = run_stat(median_df[median_df['phenotype'] == 'Mild'],
                             unit=unit, var='Genotype',
                             measure='log_lik_ratio', out_dir=dir_out)
-    spearman_correlation_plot(stat_mild[stat_mild['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out)
+    spearman_correlation_plot(stat_mild[stat_mild['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out, title_supp='Mild')
     del stat_mild
 
 
