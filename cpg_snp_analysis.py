@@ -312,7 +312,9 @@ def spearman_correlation_plot(stat_df, unit='cpg', n_site=2, out_dir='', title_s
             0, 1]].astype(int)
         stat = stat.sort_values('CHR')
         stat['CHR'] = stat['CHR'].astype('category')
-        best_cpg = stat_gen[stat_gen['cutoff'] < stat_gen['minus_log10']].sort_values('minus_log10', ascending=False).groupby('CHR').head(2)['cpg'].tolist()
+        best_cpg = stat[stat['cutoff'] < stat['minus_log10']].sort_values(
+            'minus_log10', ascending=False).groupby(
+            'CHR').head(2)['cpg'].tolist()
         stat.loc[(stat[unit].isin(best_cpg)) &
             (stat['minus_log10'] > stat['cutoff']),#
             f'{unit}_best'] = stat.loc[(stat[unit].isin(best_cpg)) &
