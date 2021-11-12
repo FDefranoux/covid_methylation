@@ -97,14 +97,14 @@ def genotype_filter(df, n_genotypes=2):
     return new_df
 
 
-def count_filter(df, min_count=10, n_genotypes=2):
+def count_filter(df, min_count=3, n_genotypes=2):
     new_df = df.copy()
     # minimal count
-    snp_counts = new_df.groupby(['SNP', 'Genotype']).size(
-        ).unstack()
+    snp_counts = new_df.groupby(['SNP', 'Genotype', 'Gen']).size(
+                    ).unstack()
     snp_ls = snp_counts[snp_counts > min_count].dropna(
         thresh=n_genotypes).index.unique().tolist()
-    cpg_counts = new_df.groupby(['cpg', 'Genotype']).size(
+    cpg_counts = new_df.groupby(['cpg', 'Genotype', 'Gen']).size(
         ).unstack()
     cpg_ls = cpg_counts[cpg_counts > min_count].dropna(
         thresh=n_genotypes).index.unique().tolist()
@@ -140,7 +140,7 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', out_d
     df[f'{var}_dum'] = df[var].replace(dict_dum)
     results = pd.DataFrame(index=df[unit].unique())
     for u in df[unit].unique():
-        u_df = df[df[unit] == u]
+        u_df = df[df[unit] == u].copy()
 
         # Counts
         count_dict = u_df[var].value_counts().rename(
@@ -151,7 +151,11 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', out_d
             ) - u_df[u_df['Gen'] == 'alt'][measure].mean()
 
         # Mann Whitney
-        mwu = multiple_mann_whitney(u_df, var, measure)
+        if isinstance(var, list):
+            u_df['mwu_var'] = u_df[var].T.apply('&'.join)
+            mwu = multiple_mann_whitney(u_df, 'mwu_var', measure)
+        else:
+            mwu = multiple_mann_whitney(u_df, var, measure)
 
         # Linear regression
         try:
@@ -161,6 +165,7 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', out_d
 
         # Spearman correlation
         spear = spearmanr(u_df[measure], u_df[var])
+        # spear = spearmanr(u_df[measure], u_df[var[0]])
 
         # Pairwise tests
         try:
@@ -191,7 +196,7 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', out_d
             results.loc[u, paired_t.index] = paired_t['p-unc']
         if not paired_w.empty:
             results.loc[u, paired_w.index] = paired_w['p-unc']
-
+    results = results.dropna(how='all').dropna(how='all', axis=1)
     results['minus_log10'] = np.log10(results[
         f'Spearman correlation p_value'].astype(float)) * (-1)
     results = results.reset_index().rename(columns={'index':unit})
@@ -203,6 +208,29 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', out_d
         f'{out_dir}/Stat_Analysis_{measure}VS{var}_per_{unit}_{suppl_title}.csv')
     return results
 
+
+def description(df):
+    final_desc = pd.DataFrame(columns=median_df.columns)
+    final_desc.loc['type'] = median_df.dtypes
+    final_desc.loc['unique_val'] = median_df.nunique()
+    final_desc.loc['count'] = median_df.count()
+    final_desc.loc['mean'] = median_df.mean()
+    final_desc.loc['median'] = median_df.median()
+    final_desc.loc['max'] = median_df.max()
+    final_desc.loc['min'] = median_df.min()
+    return final_desc
+
+
+def number_catvalues_per_var(df, var, lim_values=5):
+    per_var = pd.DataFrame(columns=df[var].unique())
+    for col in df.select_dtypes(exclude='number').drop(var, axis=1).columns:
+        unique_val = df[col].sort_values().astype(str).unique().tolist()
+        col_num = pd.DataFrame(df.groupby(var).nunique().unstack().loc[col], columns=[col]).T
+        per_var = pd.concat([per_var, col_num])
+        if df[col].nunique() < lim_values:
+            per_var = pd.concat([per_var, df.groupby([col, var]).size().unstack(
+                ).round(0).rename(index=lambda x: f'{col}: ' + x)])
+    return per_var
 
 ### PLOTS ###
 def violinplot(df, title_supp='', yvar='cpg', xvar='log_lik_ratio', huevar='Genotype', colvar='phenotype', out_dir=''):
@@ -313,8 +341,7 @@ def spearman_correlation_plot(stat_df, unit='cpg', n_site=2, out_dir='', title_s
         stat = stat.sort_values('CHR')
         stat['CHR'] = stat['CHR'].astype('category')
         best_cpg = stat[stat['cutoff'] < stat['minus_log10']].sort_values(
-            'minus_log10', ascending=False).groupby(
-            'CHR').head(2)['cpg'].tolist()
+            'minus_log10', ascending=False).groupby('CHR').head(2)['cpg'].tolist()
         stat.loc[(stat[unit].isin(best_cpg)) &
             (stat['minus_log10'] > stat['cutoff']),#
             f'{unit}_best'] = stat.loc[(stat[unit].isin(best_cpg)) &
@@ -339,7 +366,7 @@ def spearman_correlation_plot(stat_df, unit='cpg', n_site=2, out_dir='', title_s
 
 
 # MAIN
-def main(file, dir_out='results_cpg_snp_analysis', unit='cpg'):
+def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     if not os.path.exists(dir_out):
         os.makedirs(dir_out)
     # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
@@ -354,6 +381,11 @@ def main(file, dir_out='results_cpg_snp_analysis', unit='cpg'):
     all_df = all_df[(all_df['SNP'].isin(snp_ls)) & (all_df['Gen'] != 'other')
                     & (all_df['Genotype'].isin(gen_ls))]
 
+    # Dataset description
+    description(all_df).to_csv('Description_dataset.csv')
+    number_catvalues_per_var(all_df.drop(['Allele', 'ref', 'alt'], axis=1),
+        'name', lim_values=5).to_csv('Numbervalues_persamples.csv')
+
     # Median over the read_name with same Allele calling
     median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
                                 'SNP', 'Genotype', 'Gen']).median().reset_index()
@@ -361,32 +393,36 @@ def main(file, dir_out='results_cpg_snp_analysis', unit='cpg'):
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
 
     # Filter
-    print(median_df['Genotype'].value_counts().to_markdown())
-    median_new = count_filter(median_df, min_count=5, n_genotypes=2)
-    median_new = outliers(median_new, thresh_zscore=3)
+    # median_new = count_filter(median_df, min_count=5, n_genotypes=2)
+    # median_new = outliers(median_new, thresh_zscore=3)
 
     # STATS
     stat = run_stat(median_df, unit=unit, var='Genotype',
                     measure='log_lik_ratio', out_dir=dir_out)
     spearman_correlation_plot(stat[stat['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out)
+    print(stat.shape)
+    print('Ewan count selection', stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3)].shape)
+    print('Ewan count selection + 0/1', stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3)].shape)
+    print('Ewan count selection  + spearman cut', stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)].shape)
+    print('Ewan count selection  + spearman cut + 0/1', stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)].shape)
+    cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg']
     del stat
 
     stat_severe = run_stat(median_df[median_df['phenotype'] == 'Severe'],
                             unit=unit, var='Genotype',
-                            measure='log_lik_ratio', out_dir=dir_out)
-    spearman_correlation_plot(stat_severe[stat_severe['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out, title_supp='Severe')
-    del stat_severe
+                            measure='log_lik_ratio', out_dir=dir_out, suppl_title='Severe_phenotype')
+    # spearman_correlation_plot(stat_severe[stat_severe['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out, title_supp='Severe')
 
     stat_mild = run_stat(median_df[median_df['phenotype'] == 'Mild'],
                             unit=unit, var='Genotype',
-                            measure='log_lik_ratio', out_dir=dir_out)
-    spearman_correlation_plot(stat_mild[stat_mild['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out, title_supp='Mild')
-    del stat_mild
+                            measure='log_lik_ratio', out_dir=dir_out, suppl_title='Mild_phenotype')
+    # spearman_correlation_plot(stat_mild[stat_mild['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out, title_supp='Mild')
+
 
 
     # Stats heterozygotes
-    # stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
-    #     measure='log_lik_ratio', var='Gen', suppl_title='Het_only', out_dir=dir_out)
+    stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
+        measure='log_lik_ratio', var='Gen', suppl_title='Het_only', out_dir=dir_out)
     #
     # # TODO: Check if you should not just NaN the rows with counts too low for one Genotype
     # del stat_het
@@ -394,30 +430,32 @@ def main(file, dir_out='results_cpg_snp_analysis', unit='cpg'):
     # PLOTS
     # scatter_with_unique_cpg(median_df, huevar='Gen',
     #                         colvar=None, xvar='cpg', yvar='log_lik_ratio')
-    # # Violinplot only for the cpg
-    # # TODO: Fix Violin plot (all the same when coming back from the cluster)
-    # for snp in snp_ls:
-    #     snp_df = median_new[median_new['SNP'] == snp].copy()
-    #     print(snp_df.shape)
-    #     try:
-    #         g = sns.catplot(data=snp_df, y='log_lik_ratio',
-    #                         x='Genotype', orient='v', kind= 'violin',
-    #                         height=6, aspect=0.9, hue='phenotype',
-    #                         sharex=False, sharey=False)
-    #         g.savefig(f'{dir_out}/violinplot_median_all_ratio_GenPhen_distribution_{snp}.png')
-    #         g1 = sns.catplot(data=snp_df,
-    #                         y='log_lik_ratio', x='Gen', kind= 'swarm',
-    #                         height=6, aspect=0.9, hue='phenotype',
-    #                         sharex=False, sharey=False)
-    #         g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_distribution_{snp}.png')
-    #     except Exception as err:
-    #         print(f'ERROR WITH SNP {snp} ', err)
+
+    # Violinplot only for the cpg from stat filter
+    # TODO: Fix Violin plot (all the same when coming back from the cluster)
+    for cpg in cpgs_plot:
+        cpg_df = median_df[median_df['cpg'] == cpg].copy()
+        try:
+            g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                            x='Genotype', orient='v', kind= 'violin',
+                            height=6, aspect=0.9, hue='phenotype',
+                            sharex=False, sharey=False)
+            g.savefig(f'{dir_out}/violinplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
+            # g1 = sns.catplot(data=cpg_df,
+            #                 y='log_lik_ratio', x='Gen', kind= 'swarm',
+            #                 height=6, aspect=0.9, hue='phenotype',
+            #                 sharex=False, sharey=False)
+            # g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
+        except Exception as err:
+            print(f'ERROR WITH cpg {cpg} ', err)
 
 
 if __name__ == '__main__':
     main(file)
 
-# descriptive statistics
+# descriptive statistics- number of cpg per samples (boxplot per chr?) -
+# slide with  which snp we selected first and all the parameters we selected for the analysis
+
 # p-values et betas of the SNP on browser ???
 # look at each locus that are above the cutoff
 # is the cpg around promoter of a gene
