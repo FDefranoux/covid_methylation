@@ -210,14 +210,14 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', out_d
 
 
 def description(df):
-    final_desc = pd.DataFrame(columns=median_df.columns)
-    final_desc.loc['type'] = median_df.dtypes
-    final_desc.loc['unique_val'] = median_df.nunique()
-    final_desc.loc['count'] = median_df.count()
-    final_desc.loc['mean'] = median_df.mean()
-    final_desc.loc['median'] = median_df.median()
-    final_desc.loc['max'] = median_df.max()
-    final_desc.loc['min'] = median_df.min()
+    final_desc = pd.DataFrame(columns=df.columns)
+    final_desc.loc['type'] = df.dtypes
+    final_desc.loc['unique_val'] = df.nunique()
+    final_desc.loc['count'] = df.count()
+    final_desc.loc['mean'] = df.mean()
+    final_desc.loc['median'] = df.median()
+    final_desc.loc['max'] = df.max()
+    final_desc.loc['min'] = df.min()
     return final_desc
 
 
