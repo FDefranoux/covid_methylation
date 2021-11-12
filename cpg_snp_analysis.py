@@ -209,15 +209,22 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', out_d
     return results
 
 
-def description(df):
+def description(df, title='Description.csv'):
     final_desc = pd.DataFrame(columns=df.columns)
     final_desc.loc['type'] = df.dtypes
+    final_desc.to_csv(title, mode='w', header=True)
     final_desc.loc['unique_val'] = df.nunique()
+    final_desc.to_csv(title, mode='a', header=False)
     final_desc.loc['count'] = df.count()
+    final_desc.to_csv(title, mode='a', header=False)
     final_desc.loc['mean'] = df.mean()
+    final_desc.to_csv(title, mode='a', header=False)
     final_desc.loc['median'] = df.median()
+    final_desc.to_csv(title, mode='a', header=False)
     final_desc.loc['max'] = df.max()
+    final_desc.to_csv(title, mode='a', header=False)
     final_desc.loc['min'] = df.min()
+    final_desc.to_csv(title, mode='a', header=False)
     return final_desc
 
 
@@ -383,8 +390,8 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
 
     # Dataset description
     description(all_df).to_csv('Description_dataset.csv')
-    number_catvalues_per_var(all_df.drop(['Allele', 'ref', 'alt'], axis=1),
-        'name', lim_values=5).to_csv('Numbervalues_persamples.csv')
+    # number_catvalues_per_var(all_df.drop(['Allele', 'ref', 'alt'], axis=1),
+    #     'name', lim_values=5).to_csv('Numbervalues_persamples.csv')
 
     # Median over the read_name with same Allele calling
     median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
