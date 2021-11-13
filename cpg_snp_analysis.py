@@ -210,21 +210,19 @@ def run_stat(df, unit='', var='', measure='log_lik_ratio', suppl_title='', out_d
 
 
 def description(df, title='Description.csv'):
-    final_desc = pd.DataFrame(columns=df.columns)
-    final_desc.loc['type'] = df.dtypes
-    final_desc.to_csv(title, mode='w', header=True)
-    final_desc.loc['unique_val'] = df.nunique()
-    final_desc.to_csv(title, mode='a', header=False)
-    final_desc.loc['count'] = df.count()
-    final_desc.to_csv(title, mode='a', header=False)
-    final_desc.loc['mean'] = df.mean()
-    final_desc.to_csv(title, mode='a', header=False)
-    final_desc.loc['median'] = df.median()
-    final_desc.to_csv(title, mode='a', header=False)
-    final_desc.loc['max'] = df.max()
-    final_desc.to_csv(title, mode='a', header=False)
-    final_desc.loc['min'] = df.min()
-    final_desc.to_csv(title, mode='a', header=False)
+    pd.DataFrame(df.dtypes).T.to_csv(title, mode='w', header=True)
+    print('types', flush=True)
+    pd.DataFrame(df.nunique()).T.to_csv(title, mode='a', header=False)
+    print('nunique', flush=True)
+    pd.DataFrame(df.count()).T.to_csv(title, mode='a', header=False)
+    print('count', flush=True)
+    pd.DataFrame(df.mean()).T.to_csv(title, mode='a', header=False)
+    print('mean', flush=True)
+    pd.DataFrame(df.median()).T.to_csv(title, mode='a', header=False)
+    print('median', flush=True)
+    pd.DataFrame(df.max()).T.to_csv(title, mode='a', header=False)
+    print('max', flush=True)
+    pd.DataFrame(df.min()).T.to_csv(title, mode='a', header=False)
     return final_desc
 
 
@@ -389,7 +387,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
                     & (all_df['Genotype'].isin(gen_ls))]
 
     # Dataset description
-    description(all_df).to_csv('Description_dataset.csv')
+    # description(all_df).to_csv('Description_dataset.csv')
     # number_catvalues_per_var(all_df.drop(['Allele', 'ref', 'alt'], axis=1),
     #     'name', lim_values=5).to_csv('Numbervalues_persamples.csv')
 
