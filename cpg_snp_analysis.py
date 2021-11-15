@@ -441,29 +441,48 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     #                         colvar=None, xvar='cpg', yvar='log_lik_ratio')
 
     # Violinplot only for the cpg from stat filter
+    median_df = median_df.sort_values(by=['CHR', 'SNP', 'Genotype'])
+    stat_mild = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_Mild_phenotype.csv')
+    stat_sev = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_Severe_phenotype.csv')
 
-    g = sns.catplot(data=median_df[median_df['cpg'].isin(cpgs_plot)],
+    merge = pd.merge(stat_mild, stat_sev, on=['cpg', 'SNP'], suffixes=['_mild', '_sev'])
+    index_counts = merge.filter(regex='Counts*')[merge.filter(regex='Counts*') < 3].dropna(thresh=6).index
+    merge.drop(index_counts, inplace=True)
+    merge.loc[merge['Spearman correlation p_value_mild'] < 1e-5, 'log_mild'] = 'High'
+    merge.loc[merge['Spearman correlation p_value_sev'] < 1e-5, 'log_sev'] = 'High'
+    merge.loc[merge['Spearman correlation p_value_sev'] > 1e-5, 'log_sev'] = 'Low'
+    merge.loc[merge['Spearman correlation p_value_mild'] > 1e-5, 'log_mild'] = 'Low'
+
+    cpg_highsev_lowmild = merge[(merge['log_sev'] == 'High') & (merge['log_mild'] == 'Low')]['cpg'].unique()
+    cpg_lowsev_highmild = merge[(merge['log_sev'] == 'Low') & (merge['log_mild'] == 'High')]['cpg'].unique()
+    g = sns.catplot(data=median_df[median_df['cpg'].isin(cpg_highsev_lowmild)],
                     y='log_lik_ratio', col='cpg', col_wrap=5,
                     x='Genotype', orient='v', kind= 'box',
                     height=6, aspect=0.9, hue='phenotype',
                     sharex=False, sharey=False)
-    g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_all.png')
+    g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_cpg_highsev_lowmild.png')
+    g = sns.catplot(data=median_df[median_df['cpg'].isin(cpg_lowsev_highmild)],
+                    y='log_lik_ratio', col='cpg', col_wrap=5,
+                    x='Genotype', orient='v', kind= 'box',
+                    height=6, aspect=0.9, hue='phenotype',
+                    sharex=False, sharey=False)
+    g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_cpg_lowsev_highmild.png')
     # # TODO: Fix Violin plot (all the same when coming back from the cluster)
-    for cpg in cpgs_plot:
-        cpg_df = median_df[median_df['cpg'] == cpg].copy()
-        try:
-            g = sns.catplot(data=cpg_df, y='log_lik_ratio',
-                            x='Genotype', orient='v', kind= 'box',
-                            height=6, aspect=0.9, hue='phenotype',
-                            sharex=False, sharey=False)
-            g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
-            # g1 = sns.catplot(data=cpg_df,
-            #                 y='log_lik_ratio', x='Gen', kind= 'swarm',
-            #                 height=6, aspect=0.9, hue='phenotype',
-            #                 sharex=False, sharey=False)
-            # g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
-        except Exception as err:
-            print(f'ERROR WITH cpg {cpg} ', err)
+    # for cpg in cpgs_plot:
+    #     cpg_df = median_df[median_df['cpg'] == cpg].copy()
+    #     try:
+    #         g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+    #                         x='Genotype', orient='v', kind= 'box',
+    #                         height=6, aspect=0.9, hue='phenotype',
+    #                         sharex=False, sharey=False)
+    #         g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
+    #         # g1 = sns.catplot(data=cpg_df,
+    #         #                 y='log_lik_ratio', x='Gen', kind= 'swarm',
+    #         #                 height=6, aspect=0.9, hue='phenotype',
+    #         #                 sharex=False, sharey=False)
+    #         # g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
+    #     except Exception as err:
+    #         print(f'ERROR WITH cpg {cpg} ', err)
 
 
 if __name__ == '__main__':
