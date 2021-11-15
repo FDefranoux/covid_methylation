@@ -442,7 +442,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
 
     # Violinplot only for the cpg from stat filter
 
-    g = sns.catplot(data=median_new[median_new['cpg'].isin(cpgs_plot)],
+    g = sns.catplot(data=median_df[median_df['cpg'].isin(cpgs_plot)],
                     y='log_lik_ratio', col='cpg', col_wrap=5,
                     x='Genotype', orient='v', kind= 'box',
                     height=6, aspect=0.9, hue='phenotype',
@@ -450,7 +450,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_all.png')
     # # TODO: Fix Violin plot (all the same when coming back from the cluster)
     for cpg in cpgs_plot:
-        cpg_df = median_new[median_new['cpg'] == cpg].copy()
+        cpg_df = median_df[median_df['cpg'] == cpg].copy()
         try:
             g = sns.catplot(data=cpg_df, y='log_lik_ratio',
                             x='Genotype', orient='v', kind= 'box',
