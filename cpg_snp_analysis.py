@@ -398,8 +398,8 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
 
     # Filter
-    median_new = outliers(median_df, thresh_zscore=3)
-    median_new = count_filter(median_new, min_count=5, n_genotypes=2)
+    # median_new = outliers(median_df, thresh_zscore=3)
+    # median_new = count_filter(median_new, min_count=5, n_genotypes=2)
 
     # STATS
     # stat = run_stat(median_df, unit=unit, var='Genotype',
