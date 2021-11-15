@@ -398,8 +398,8 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
 
     # Filter
-    # median_new = count_filter(median_df, min_count=5, n_genotypes=2)
-    # median_new = outliers(median_new, thresh_zscore=3)
+    median_new = count_filter(median_df, min_count=5, n_genotypes=2)
+    median_new = outliers(median_new, thresh_zscore=3)
 
     # STATS
     # stat = run_stat(median_df, unit=unit, var='Genotype',
@@ -442,28 +442,28 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
 
     # Violinplot only for the cpg from stat filter
 
-    g = sns.catplot(data=median_df[median_df['cpg'].isin(cpgs_plot)],
+    g = sns.catplot(data=median_new[median_new['cpg'].isin(cpgs_plot)],
                     y='log_lik_ratio', col='cpg', col_wrap=5,
-                    x='Genotype', orient='v', kind= 'violin',
+                    x='Genotype', orient='v', kind= 'box',
                     height=6, aspect=0.9, hue='phenotype',
                     sharex=False, sharey=False)
-    g.savefig(f'{dir_out}/violinplot_median_all_ratio_GenPhen_distribution_all.png')
+    g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_all.png')
     # # TODO: Fix Violin plot (all the same when coming back from the cluster)
-    # for cpg in cpgs_plot:
-    #     cpg_df = median_df[median_df['cpg'] == cpg].copy()
-    #     try:
-    #         g = sns.catplot(data=cpg_df, y='log_lik_ratio',
-    #                         x='Genotype', orient='v', kind= 'violin',
-    #                         height=6, aspect=0.9, hue='phenotype',
-    #                         sharex=False, sharey=False)
-    #         g.savefig(f'{dir_out}/violinplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
-    #         # g1 = sns.catplot(data=cpg_df,
-    #         #                 y='log_lik_ratio', x='Gen', kind= 'swarm',
-    #         #                 height=6, aspect=0.9, hue='phenotype',
-    #         #                 sharex=False, sharey=False)
-    #         # g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
-    #     except Exception as err:
-    #         print(f'ERROR WITH cpg {cpg} ', err)
+    for cpg in cpgs_plot:
+        cpg_df = median_new[median_new['cpg'] == cpg].copy()
+        try:
+            g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                            x='Genotype', orient='v', kind= 'box',
+                            height=6, aspect=0.9, hue='phenotype',
+                            sharex=False, sharey=False)
+            g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
+            # g1 = sns.catplot(data=cpg_df,
+            #                 y='log_lik_ratio', x='Gen', kind= 'swarm',
+            #                 height=6, aspect=0.9, hue='phenotype',
+            #                 sharex=False, sharey=False)
+            # g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
+        except Exception as err:
+            print(f'ERROR WITH cpg {cpg} ', err)
 
 
 if __name__ == '__main__':
