@@ -441,7 +441,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     #                         colvar=None, xvar='cpg', yvar='log_lik_ratio')
 
     # Violinplot only for the cpg from stat filter
-    # median_df = median_df.sort_values(by=['CHR', 'SNP', 'Genotype'])
+    median_df = median_df.sort_values(by=['CHR', 'SNP', 'Genotype'])
     # stat_mild = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_Mild_phenotype.csv')
     # stat_sev = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_Severe_phenotype.csv')
     #
