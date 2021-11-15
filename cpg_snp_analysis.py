@@ -470,7 +470,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
 
     # # TODO: Fix Violin plot (all the same when coming back from the cluster)
     cpg_weird = [ '17:46768336:3', '6:33069193:2']
-    for cpg in cpgs_plot:
+    for cpg in cpgs_weird:
         cpg_df = median_df[median_df['cpg'] == cpg].copy()
         try:
             g = sns.catplot(data=cpg_df, y='log_lik_ratio',
