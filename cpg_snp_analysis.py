@@ -401,7 +401,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
                                           kind='box', sharex=False, sharey=False)
                 else:
                     g_count = sns.catplot(data=count, y=unit, x=var, col='phenotype',
-                                          row='CHR', kind='box', aspect=1.5, height=15,
+                                          row='CHR', kind='swarm', aspect=1.5, height=15,
                                           sharex=False, sharey=False)
                 g_count.savefig(f'FROZEN_results_cpg_snp_analysis/special_plots/Count_{var}_per_{unit}.png')
             except Exception as err:
@@ -554,7 +554,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
 if __name__ == '__main__':
     main(file)
 
-# descriptive statistics- number of cpg per samples (boxplot per chr?) -
+# descriptive statistics- number of cpg per samples (boxplot per chr?)
 # slide with  which snp we selected first and all the parameters we selected for the analysis
 
 # p-values et betas of the SNP on browser ???
