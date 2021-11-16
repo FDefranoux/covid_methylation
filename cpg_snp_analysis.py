@@ -485,21 +485,21 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
                                 x='Genotype', orient='v', kind= 'box',
                                 height=6, aspect=0.9,
                                 sharex=False, sharey=False)
-                g1.set(title=f'CpG {cpg} associated with SNPs {snp}')
+                g1.set(title=f'CpG {cpg} associated with SNP {snp}')
                 g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}.png')
                 # 2 way phenotype
                 g2 = sns.catplot(data=cpg_df, y='log_lik_ratio',
                                 x='phenotype', orient='v', kind= 'box',
                                 height=6, aspect=0.9,
                                 sharex=False, sharey=False)
-                g2.set(title=f'CpG {cpg} associated with SNPs {snp}')
+                g2.set(title=f'CpG {cpg} associated with SNP {snp}')
                 g2.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}.png')
                 # 6 way
                 g3 = sns.catplot(data=cpg_df, y='log_lik_ratio',
                                 x='Genotype', orient='v', kind= 'box',
                                 height=6, aspect=0.9, hue='phenotype',
                                 sharex=False, sharey=False)
-                g3.set(title=f'CpG {cpg} associated with SNPs {snp}')
+                g3.set(title=f'CpG {cpg} associated with SNP {snp}')
                 g3.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}.png')
 
                 # Individual for heterozygotes
@@ -529,7 +529,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
 
             except Exception as err:
                 print(f'ERROR WITH cpg {cpg} ', err)
-    # description(all_df).to_csv('Description_dataset.csv')
+    description(all_df)
 # workflow slide and stat with number of loci cpg site in total average per loci and
 # paired
 
