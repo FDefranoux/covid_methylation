@@ -378,14 +378,14 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
     # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
     # Selection of the SNPs
     # TODO: Check selection of random/control SNPs with TOM
-    snp_ls = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p',
-        dist_bp=500000)
-    gen_ls = ['0/0', '0/1', '1/1']
+snp_ls = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p',
+    dist_bp=500000)
+gen_ls = ['0/0', '0/1', '1/1']
 
-    # Opening file
-    all_df = pd.read_csv(file)
-    all_df = all_df[(all_df['SNP'].isin(snp_ls)) & (all_df['Gen'] != 'other')
-                    & (all_df['Genotype'].isin(gen_ls))]
+# Opening file
+all_df = pd.read_csv(file)
+all_df = all_df[(all_df['SNP'].isin(snp_ls)) & (all_df['Gen'] != 'other')
+                & (all_df['Genotype'].isin(gen_ls))]
 
     # Dataset description
     # number_catvalues_per_var(all_df.drop(['Allele', 'ref', 'alt'], axis=1),
@@ -473,59 +473,60 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
         # g.savefig(f'{dir_out}/Boxplot_median_ratio_GenPhen_all_{supp_title}_het.png')
 
         # INDIVIDUAL PLOTS
-        for cpg in ['1:155211915:1']:
+        for cpg in list:
+            fig. ax = plt.subplots()
             cpg_df = median_df[median_df['cpg'] == cpg].copy()
             snp = str(cpg_df['SNP'].unique().tolist())[2:-2]
             print(snp)
+
             try:
                 # Individual per genotype
-                # 6 way
-                g = sns.catplot(data=cpg_df, y='log_lik_ratio',
-                                x='Genotype', orient='v', kind= 'box',
-                                height=6, aspect=0.9, hue='phenotype',
-                                sharex=False, sharey=False)
-                g.set(title=f'CpG {cpg} associated with SNPs {snp}')
-                g.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}.png')
                 # 3 way genotype
-                g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                g1 = sns.catplot(data=cpg_df, y='log_lik_ratio',
                                 x='Genotype', orient='v', kind= 'box',
                                 height=6, aspect=0.9,
                                 sharex=False, sharey=False)
-                g.set(title=f'CpG {cpg} associated with SNPs {snp}')
-                g.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}.png')
+                g1.set(title=f'CpG {cpg} associated with SNPs {snp}')
+                g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}.png')
                 # 2 way phenotype
-                g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                g2 = sns.catplot(data=cpg_df, y='log_lik_ratio',
                                 x='phenotype', orient='v', kind= 'box',
                                 height=6, aspect=0.9,
                                 sharex=False, sharey=False)
-                g.set(title=f'CpG {cpg} associated with SNPs {snp}')
-                g.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}.png')
-
+                g2.set(title=f'CpG {cpg} associated with SNPs {snp}')
+                g2.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}.png')
+                # 6 way
+                g3 = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                                x='Genotype', orient='v', kind= 'box',
+                                height=6, aspect=0.9, hue='phenotype',
+                                sharex=False, sharey=False)
+                g3.set(title=f'CpG {cpg} associated with SNPs {snp}')
+                g3.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}.png')
 
                 # Individual for heterozygotes
                 # 4 way
-                g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                g4 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
                                 y='log_lik_ratio', x='Gen', kind= 'box',
                                 height=6, aspect=0.9, hue='phenotype',
                                 sharex=False, sharey=False)
-                g1.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
-                g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}_het.png')
+                g4.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
+                g4.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}_het.png')
+
+                # 2 way allele
+                g5 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                                 y='log_lik_ratio', x='Gen', kind= 'box',
+                                 height=6, aspect=0.9,
+                                 sharex=False, sharey=False)
+                g5.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
+                g5.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}_het.png')
 
                 # 2 way phenotype
-                g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                g6 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
                                 y='log_lik_ratio', x='phenotype', kind= 'box',
                                 height=6, aspect=0.9,
                                 sharex=False, sharey=False)
-                g1.set(title=f'CpG {cpg} associated with SNP {snp}')
-                g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}_het.png')
-
-                # 2 way allele
-                g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-                                y='log_lik_ratio', x='Gen', kind= 'box',
-                                height=6, aspect=0.9,
-                                sharex=False, sharey=False)
-                g1.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
-                g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}_het.png')
+                g6.set(title=f'CpG {cpg} associated with SNP {snp}')
+                g6.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}_het.png')
 
             except Exception as err:
                 print(f'ERROR WITH cpg {cpg} ', err)
