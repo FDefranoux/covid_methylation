@@ -455,12 +455,12 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     #
     # cpg_highsev_lowmild = merge[(merge['log_sev'] == 'High') & (merge['log_mild'] == 'Low')]['cpg'].unique()
     # cpg_lowsev_highmild = merge[(merge['log_sev'] == 'Low') & (merge['log_mild'] == 'High')]['cpg'].unique()
-    # g = sns.catplot(data=median_df[median_df['cpg'].isin(cpg_highsev_lowmild)],
-    #                 y='log_lik_ratio', col='cpg', col_wrap=5,
-    #                 x='Genotype', orient='v', kind= 'box',
-    #                 height=6, aspect=0.9, hue='phenotype',
-    #                 sharex=False, sharey=False)
-    # g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_cpg_highsev_lowmild.png')
+    g = sns.catplot(data=median_df[(median_df['Genotype'] == '0/1') & (median_df['cpg'].isin(cpgs_plot))],
+                    y='log_lik_ratio', col='cpg', col_wrap=5,
+                    x='Gen', orient='v', kind= 'box',
+                    height=6, aspect=0.9, hue='phenotype',
+                    sharex=False, sharey=False)
+    g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_all_het.png')
     # g = sns.catplot(data=median_df[median_df['cpg'].isin(cpg_lowsev_highmild)],
     #                 y='log_lik_ratio', col='cpg', col_wrap=5,
     #                 x='Genotype', orient='v', kind= 'box',
