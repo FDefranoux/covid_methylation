@@ -395,15 +395,24 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
             try:
                 print(unit)
                 count = all_df.groupby(['phenotype','CHR', unit]).count()[var].reset_index()
+                count.to_csv(f'FROZEN_results_cpg_snp_analysis/special_plots/Count_{var}_per_{unit}.csv')
+                nunique = all_df.groupby(['phenotype','CHR', unit]).nunique()[var].reset_index()
+                nunique.to_csv(f'FROZEN_results_cpg_snp_analysis/special_plots/Nunique_{var}_per_{unit}.csv')
                 unit_count = count[unit].nunique()
                 if unit == 'SNP':
                     g_count = sns.catplot(data=count, y=unit, x=var, col='phenotype',
-                                          kind='box', sharex=False, sharey=False)
+                                          kind='bar', sharex=False, sharey=False)
+                    g_nunique = sns.catplot(data=nunique, y=unit, x=var, col='phenotype',
+                                          kind='bar', sharex=False, sharey=False)
                 else:
                     g_count = sns.catplot(data=count, y=unit, x=var, col='phenotype',
-                                          row='CHR', kind='swarm', aspect=1.5, height=15,
+                                          row='CHR', kind='bar', aspect=1.5, height=15,
+                                          sharex=False, sharey=False)
+                    g_nunique = sns.catplot(data=nunique, y=unit, x=var, col='phenotype',
+                                          row='CHR', kind='bar', aspect=1.5, height=15,
                                           sharex=False, sharey=False)
                 g_count.savefig(f'FROZEN_results_cpg_snp_analysis/special_plots/Count_{var}_per_{unit}.png')
+                g_nunique.savefig(f'FROZEN_results_cpg_snp_analysis/special_plots/Nunique_{var}_per_{unit}.png')
             except Exception as err:
                 print(err)
 
