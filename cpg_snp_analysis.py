@@ -216,13 +216,14 @@ def description(df, title='Description.csv'):
     print('nunique', flush=True)
     pd.DataFrame(df.count()).T.to_csv(title, mode='a', header=False)
     print('count', flush=True)
+    pd.DataFrame(df.max()).T.to_csv(title, mode='a', header=False)
+    print('max', flush=True)
+    pd.DataFrame(df.min()).T.to_csv(title, mode='a', header=False)
+    print('min', flush=True)
     pd.DataFrame(df.mean()).T.to_csv(title, mode='a', header=False)
     print('mean', flush=True)
     pd.DataFrame(df.median()).T.to_csv(title, mode='a', header=False)
     print('median', flush=True)
-    pd.DataFrame(df.max()).T.to_csv(title, mode='a', header=False)
-    print('max', flush=True)
-    pd.DataFrame(df.min()).T.to_csv(title, mode='a', header=False)
     return final_desc
 
 
@@ -371,7 +372,7 @@ def spearman_correlation_plot(stat_df, unit='cpg', n_site=2, out_dir='', title_s
 
 
 # MAIN
-def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
+def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cpg'):
     if not os.path.exists(dir_out):
         os.makedirs(dir_out)
     # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
@@ -387,36 +388,34 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
                     & (all_df['Genotype'].isin(gen_ls))]
 
     # Dataset description
-    # description(all_df).to_csv('Description_dataset.csv')
     # number_catvalues_per_var(all_df.drop(['Allele', 'ref', 'alt'], axis=1),
     #     'name', lim_values=5).to_csv('Numbervalues_persamples.csv')
 
     # Median over the read_name with same Allele calling
     median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
                                 'SNP', 'Genotype', 'Gen']).median().reset_index()
-    del all_df
+    median_df = median_df.sort_values(by=['Gen'], ascending=False)
+    median_df = median_df.sort_values(by=['CHR', 'SNP', 'Genotype'])
+
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
 
     # Filter
     # median_new = outliers(median_df, thresh_zscore=3)
     # median_new = count_filter(median_new, min_count=5, n_genotypes=2)
 
-    # STATS
+    # STATS ON THE OVERALL DF
     # stat = run_stat(median_df, unit=unit, var='Genotype',
     #                 measure='log_lik_ratio', out_dir=dir_out)
     # spearman_correlation_plot(stat[stat['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out)
     # print(stat.shape)
-    # print('Ewan count selection', stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3)].shape)
-    # print('Ewan count selection + 0/1', stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3)].shape)
-    # print('Ewan count selection  + spearman cut', stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)].shape)
-    # print('Ewan count selection  + spearman cut + 0/1', stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)].shape)
-    # cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg']
-    # del stat
-    cols = ['Counts 0/0', 'Counts 1/1', 'Counts 0/1', 'Spearman correlation p_value', 'cpg']
-    stat = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_.csv', usecols=cols)
-    cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg'].unique()
 
-    #
+    # STATS FOR HETEROZYGOTES
+    # stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
+    #     measure='log_lik_ratio', var='Gen', suppl_title='Het_only', out_dir=dir_out)
+    # # TODO: Check if you should not just NaN the rows with counts too low for one Genotype
+    # del stat_het
+
+    # STATS PER PHENOTYPE
     # stat_severe = run_stat(median_df[median_df['phenotype'] == 'Severe'],
     #                         unit=unit, var='Genotype',
     #                         measure='log_lik_ratio', out_dir=dir_out, suppl_title='Severe_phenotype')
@@ -425,26 +424,9 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     # stat_mild = run_stat(median_df[median_df['phenotype'] == 'Mild'],
     #                         unit=unit, var='Genotype',
     #                         measure='log_lik_ratio', out_dir=dir_out, suppl_title='Mild_phenotype')
-    # # spearman_correlation_plot(stat_mild[stat_mild['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out, title_supp='Mild')
-    #
-    #
-    #
-    # # Stats heterozygotes
-    # stat_het = run_stat(median_df[median_df['Genotype'] == '0/1'], unit=unit,
-    #     measure='log_lik_ratio', var='Gen', suppl_title='Het_only', out_dir=dir_out)
-    # #
-    # # TODO: Check if you should not just NaN the rows with counts too low for one Genotype
-    # del stat_het
+    # spearman_correlation_plot(stat_mild[stat_mild['minus_log10'].isna()==False], unit=unit, n_site=2, out_dir=dir_out, title_supp='Mild')
 
-    # PLOTS
-    # scatter_with_unique_cpg(median_df, huevar='Gen',
-    #                         colvar=None, xvar='cpg', yvar='log_lik_ratio')
-
-    # Violinplot only for the cpg from stat filter
-    median_df = median_df.sort_values(by=['CHR', 'SNP', 'Genotype'])
-    # stat_mild = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_Mild_phenotype.csv')
-    # stat_sev = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_Severe_phenotype.csv')
-    #
+    # ANALYSIS MILD VS SEVERE
     # merge = pd.merge(stat_mild, stat_sev, on=['cpg', 'SNP'], suffixes=['_mild', '_sev'])
     # index_counts = merge.filter(regex='Counts*')[merge.filter(regex='Counts*') < 3].dropna(thresh=6).index
     # merge.drop(index_counts, inplace=True)
@@ -452,55 +434,104 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     # merge.loc[merge['Spearman correlation p_value_sev'] < 1e-5, 'log_sev'] = 'High'
     # merge.loc[merge['Spearman correlation p_value_sev'] > 1e-5, 'log_sev'] = 'Low'
     # merge.loc[merge['Spearman correlation p_value_mild'] > 1e-5, 'log_mild'] = 'Low'
-    #
     # cpg_highsev_lowmild = merge[(merge['log_sev'] == 'High') & (merge['log_mild'] == 'Low')]['cpg'].unique()
     # cpg_lowsev_highmild = merge[(merge['log_sev'] == 'Low') & (merge['log_mild'] == 'High')]['cpg'].unique()
-    g = sns.catplot(data=median_df[(median_df['Genotype'] == '0/1') & (median_df['cpg'].isin(cpgs_plot))],
-                    y='log_lik_ratio', col='cpg', col_wrap=5,
-                    x='Gen', orient='v', kind= 'box',
-                    height=6, aspect=0.9, hue='phenotype',
-                    sharex=False, sharey=False)
-    g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_all_het.png')
-    # g = sns.catplot(data=median_df[median_df['cpg'].isin(cpg_lowsev_highmild)],
-    #                 y='log_lik_ratio', col='cpg', col_wrap=5,
-    #                 x='Genotype', orient='v', kind= 'box',
-    #                 height=6, aspect=0.9, hue='phenotype',
-    #                 sharex=False, sharey=False)
-    # g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_cpg_lowsev_highmild.png')
 
-    # # TODO: Fix Violin plot (all the same when coming back from the cluster)
-    cpg_weird = [ '17:46768336:3', '6:33069193:2']
-    for cpg in cpg_weird:
-        cpg_df = median_df[median_df['cpg'] == cpg].copy()
-        try:
-            # g = sns.catplot(data=cpg_df, y='log_lik_ratio',
-            #                 x='Genotype', orient='v', kind= 'box',
-            #                 height=6, aspect=0.9, hue='phenotype',
-            #                 sharex=False, sharey=False)
-            # g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_EXTRA_{cpg}.png')
-            g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-                            y='log_lik_ratio', x='Gen', kind= 'box',
-                            height=6, aspect=0.9, hue='phenotype',
-                            sharex=False, sharey=False)
-            g1.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_EXTRA_{cpg}_het.png')
-        except Exception as err:
-            print(f'ERROR WITH cpg {cpg} ', err)
-    for cpg in cpgs_plot:
-        cpg_df = median_df[median_df['cpg'] == cpg].copy()
-        try:
-            # g = sns.catplot(data=cpg_df, y='log_lik_ratio',
-            #                 x='Genotype', orient='v', kind= 'box',
-            #                 height=6, aspect=0.9, hue='phenotype',
-            #                 sharex=False, sharey=False)
-            # g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_EXTRA_{cpg}.png')
-            g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-                            y='log_lik_ratio', x='Gen', kind= 'box',
-                            height=6, aspect=0.9, hue='phenotype',
-                            sharex=False, sharey=False)
-            g1.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_{cpg}_het.png')
-        except Exception as err:
-            print(f'ERROR WITH cpg {cpg} ', err)
+    # READING STAT FILES FOR PLOTS
+    # cols = ['Counts 0/0', 'Counts 1/1', 'Counts 0/1', 'Spearman correlation p_value', 'cpg']
+    # stat = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_.csv', usecols=cols)
+    # stat_mild = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_Mild_phenotype.csv')
+    # stat_sev = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_Severe_phenotype.csv')
 
+    # CPGs of interest
+    # cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg'].unique()
+    cpg_interest = ['17:46768336:3', '6:33069193:2']
+    cpg_control = ['12:112925744:1', '17:46065976:1', '21:33229986:3'] # highest p-val
+    # ['17:46065976:1', '12:112942465:1', '21:33229986:3'] # highest rho
+    dict_cpgs = {'INTEREST': cpg_interest,
+                    'HIGHmildHIGHsev': cpg_control,
+                    'EXTRA': ['3:45848456:1', '21:33226777:1', '21:33242527:1']}
+    # del stat
+
+    for supp_title, list in dict_cpgs.items():
+
+        # df = median_df[median_df['cpg'].isin(list)]
+        # GENERAL PLOT GENOTYPE
+        # g = sns.catplot(data=df,
+        #                 y='log_lik_ratio', col='cpg', col_wrap=5,
+        #                 x='Genotype', orient='v', kind= 'box',
+        #                 height=6, aspect=0.9, hue='phenotype',
+        #                 sharex=False, sharey=False)
+        # g.savefig(f'{dir_out}/Boxplot_median_ratio_GenPhen_all_{supp_title}.png')
+        #
+        # # GENERAL PLOT HETEROZYGOTES
+        # g = sns.catplot(data=df[df['Genotype'] == '0/1')],
+        #                 y='log_lik_ratio', col='cpg', col_wrap=5,
+        #                 x='Gen', orient='v', kind= 'box',
+        #                 height=6, aspect=0.9, hue='phenotype',
+        #                 sharex=False, sharey=False, )
+        # g.savefig(f'{dir_out}/Boxplot_median_ratio_GenPhen_all_{supp_title}_het.png')
+
+        # INDIVIDUAL PLOTS
+        for cpg in ['1:155211915:1']:
+            cpg_df = median_df[median_df['cpg'] == cpg].copy()
+            snp = str(cpg_df['SNP'].unique().tolist())[2:-2]
+            print(snp)
+            try:
+                # Individual per genotype
+                # 6 way
+                g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                                x='Genotype', orient='v', kind= 'box',
+                                height=6, aspect=0.9, hue='phenotype',
+                                sharex=False, sharey=False)
+                g.set(title=f'CpG {cpg} associated with SNPs {snp}')
+                g.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}.png')
+                # 3 way genotype
+                g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                                x='Genotype', orient='v', kind= 'box',
+                                height=6, aspect=0.9,
+                                sharex=False, sharey=False)
+                g.set(title=f'CpG {cpg} associated with SNPs {snp}')
+                g.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}.png')
+                # 2 way phenotype
+                g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                                x='phenotype', orient='v', kind= 'box',
+                                height=6, aspect=0.9,
+                                sharex=False, sharey=False)
+                g.set(title=f'CpG {cpg} associated with SNPs {snp}')
+                g.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}.png')
+
+
+                # Individual for heterozygotes
+                # 4 way
+                g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                                y='log_lik_ratio', x='Gen', kind= 'box',
+                                height=6, aspect=0.9, hue='phenotype',
+                                sharex=False, sharey=False)
+                g1.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
+                g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}_het.png')
+
+                # 2 way phenotype
+                g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                                y='log_lik_ratio', x='phenotype', kind= 'box',
+                                height=6, aspect=0.9,
+                                sharex=False, sharey=False)
+                g1.set(title=f'CpG {cpg} associated with SNP {snp}')
+                g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}_het.png')
+
+                # 2 way allele
+                g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                                y='log_lik_ratio', x='Gen', kind= 'box',
+                                height=6, aspect=0.9,
+                                sharex=False, sharey=False)
+                g1.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
+                g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}_het.png')
+
+            except Exception as err:
+                print(f'ERROR WITH cpg {cpg} ', err)
+    # description(all_df).to_csv('Description_dataset.csv')
+# workflow slide and stat with number of loci cpg site in total average per loci and
+# paired
 
 if __name__ == '__main__':
     main(file)
@@ -576,7 +607,8 @@ def other_plots():
                             colvar='Genotype', xvar='cpg', yvar='log_lik_ratio')
     scatter_with_unique_cpg(median_df, huevar='phenotype',
                             colvar='Genotype', xvar='SNP', yvar='log_lik_ratio')
-    #
+    # scatter_with_unique_cpg(median_df, huevar='Gen',
+    #                         colvar=None, xvar='cpg', yvar='log_lik_ratio')
     for chr in median_df['CHR'].sort_values().unique():
         violinplot(median_df[median_df['CHR'] == chr], title_supp=chr, yvar='cpg',
                    xvar='log_lik_ratio', huevar='Genotype', colvar='phenotype')
@@ -585,3 +617,4 @@ def other_plots():
         # ridgeplot(median_df[median_df['CHR'] == 1], chr=1, rowvar='SNP',
         #           huevar='Genotype', colvar='phenotype', var='log_lik_ratio')
 # TODO: Fix ridge PLOTS not working with cpg, bigger font size
+# TODO: Fix Violin plot (all the same when coming back from the cluster)
