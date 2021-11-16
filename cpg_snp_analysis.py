@@ -395,7 +395,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
     median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
                                 'SNP', 'Genotype', 'Gen']).median().reset_index()
     median_df = median_df.sort_values(by=['Gen'], ascending=False)
-    median_df = median_df.sort_values(by=['CHR', 'SNP', 'Genotype'])
+    median_df = median_df.sort_values(by=['CHR', 'SNP', 'Genotype', 'phenotype'])
 
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
 
@@ -445,11 +445,9 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
 
     # CPGs of interest
     # cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg'].unique()
-    cpg_interest = ['17:46768336:3', '6:33069193:2']
-    cpg_control = ['12:112925744:1', '17:46065976:1', '21:33229986:3'] # highest p-val
-    # ['17:46065976:1', '12:112942465:1', '21:33229986:3'] # highest rho
-    dict_cpgs = {'INTEREST': cpg_interest,
-                    'HIGHmildHIGHsev': cpg_control,
+    # highest p-val for highmildhighsev : ['17:46065976:1', '12:112942465:1', '21:33229986:3'] # highest rho
+    dict_cpgs = {'INTEREST': ['17:46768336:3', '6:33069193:2'],
+                    'HIGHmildHIGHsev': ['12:112925744:1', '17:46065976:1', '21:33229986:3'],
                     'EXTRA': ['3:45848456:1', '21:33226777:1', '21:33242527:1']}
     # del stat
 
@@ -481,12 +479,12 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
             try:
                 # Individual per genotype
                 # 3 way genotype
-                g1 = sns.catplot(data=cpg_df, y='log_lik_ratio',
-                                x='Genotype', orient='v', kind= 'box',
-                                height=6, aspect=0.9,
-                                sharex=False, sharey=False)
-                g1.set(title=f'CpG {cpg} associated with SNP {snp}')
-                g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}.png')
+                # g1 = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                #                 x='Genotype', orient='v', kind= 'box',
+                #                 height=6, aspect=0.9,
+                #                 sharex=False, sharey=False)
+                # g1.set(title=f'CpG {cpg} associated with SNP {snp}')
+                # g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}.png')
                 # 2 way phenotype
                 g2 = sns.catplot(data=cpg_df, y='log_lik_ratio',
                                 x='phenotype', orient='v', kind= 'box',
@@ -495,29 +493,29 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
                 g2.set(title=f'CpG {cpg} associated with SNP {snp}')
                 g2.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}.png')
                 # 6 way
-                g3 = sns.catplot(data=cpg_df, y='log_lik_ratio',
-                                x='Genotype', orient='v', kind= 'box',
-                                height=6, aspect=0.9, hue='phenotype',
-                                sharex=False, sharey=False)
-                g3.set(title=f'CpG {cpg} associated with SNP {snp}')
-                g3.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}.png')
+                # g3 = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                #                 x='Genotype', orient='v', kind= 'box',
+                #                 height=6, aspect=0.9, hue='phenotype',
+                #                 sharex=False, sharey=False)
+                # g3.set(title=f'CpG {cpg} associated with SNP {snp}')
+                # g3.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}.png')
 
                 # Individual for heterozygotes
                 # 4 way
-                g4 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-                                y='log_lik_ratio', x='Gen', kind= 'box',
-                                height=6, aspect=0.9, hue='phenotype',
-                                sharex=False, sharey=False)
-                g4.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
-                g4.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}_het.png')
+                # g4 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                #                 y='log_lik_ratio', x='Gen', kind= 'box',
+                #                 height=6, aspect=0.9, hue='phenotype',
+                #                 sharex=False, sharey=False)
+                # g4.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
+                # g4.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}_het.png')
 
-                # 2 way allele
-                g5 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-                                 y='log_lik_ratio', x='Gen', kind= 'box',
-                                 height=6, aspect=0.9,
-                                 sharex=False, sharey=False)
-                g5.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
-                g5.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}_het.png')
+                # # 2 way allele
+                # g5 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                #                  y='log_lik_ratio', x='Gen', kind= 'box',
+                #                  height=6, aspect=0.9,
+                #                  sharex=False, sharey=False)
+                # g5.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
+                # g5.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}_het.png')
 
                 # 2 way phenotype
                 g6 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
@@ -530,8 +528,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
             except Exception as err:
                 print(f'ERROR WITH cpg {cpg} ', err)
     description(all_df)
-# workflow slide and stat with number of loci cpg site in total average per loci and
-# paired
+# workflow slide and stat with number of loci cpg site in total average per loci
 
 if __name__ == '__main__':
     main(file)
