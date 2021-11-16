@@ -412,9 +412,9 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     # print('Ewan count selection  + spearman cut + 0/1', stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)].shape)
     # cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg']
     # del stat
-    # cols = ['Counts 0/0', 'Counts 1/1', 'Counts 0/1', 'Spearman correlation p_value', 'cpg']
-    # stat = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_.csv', usecols=cols)
-    # cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg'].unique()
+    cols = ['Counts 0/0', 'Counts 1/1', 'Counts 0/1', 'Spearman correlation p_value', 'cpg']
+    stat = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_.csv', usecols=cols)
+    cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg'].unique()
 
     #
     # stat_severe = run_stat(median_df[median_df['phenotype'] == 'Severe'],
@@ -473,18 +473,31 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
     for cpg in cpg_weird:
         cpg_df = median_df[median_df['cpg'] == cpg].copy()
         try:
-            g = sns.catplot(data=cpg_df, y='log_lik_ratio',
-                            x='Genotype', orient='v', kind= 'box',
-                            height=6, aspect=0.9, hue='phenotype',
-                            sharex=False, sharey=False)
-            g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_EXTRA_{cpg}.png')
-            # g1 = sns.catplot(data=cpg_df,
-            #                 y='log_lik_ratio', x='Gen', kind= 'swarm',
+            # g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+            #                 x='Genotype', orient='v', kind= 'box',
             #                 height=6, aspect=0.9, hue='phenotype',
             #                 sharex=False, sharey=False)
-            # g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_distribution_{cpg}.png')
+            # g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_EXTRA_{cpg}.png')
+            g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                            y='log_lik_ratio', x='Gen', kind= 'swarm',
+                            height=6, aspect=0.9, hue='phenotype',
+                            sharex=False, sharey=False)
+            g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_EXTRA_{cpg}_het.png')
         except Exception as err:
             print(f'ERROR WITH cpg {cpg} ', err)
+        for cpg in cpgs_plot:
+            cpg_df = median_df[median_df['cpg'] == cpg].copy()
+            try:
+                # g = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                #                 x='Genotype', orient='v', kind= 'box',
+                #                 height=6, aspect=0.9, hue='phenotype',
+                #                 sharex=False, sharey=False)
+                # g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_EXTRA_{cpg}.png')
+                g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                                y='log_lik_ratio', x='Gen', kind= 'swarm',
+                                height=6, aspect=0.9, hue='phenotype',
+                                sharex=False, sharey=False)
+                g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_EXTRA_{cpg}_het.png')
 
 
 if __name__ == '__main__':
