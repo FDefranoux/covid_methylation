@@ -527,7 +527,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
 
             except Exception as err:
                 print(f'ERROR WITH cpg {cpg} ', err)
-    description(all_df)
+
 # workflow slide and stat with number of loci cpg site in total average per loci
 
 if __name__ == '__main__':
