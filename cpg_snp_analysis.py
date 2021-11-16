@@ -378,14 +378,14 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
     # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
     # Selection of the SNPs
     # TODO: Check selection of random/control SNPs with TOM
-snp_ls = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p',
-    dist_bp=500000)
-gen_ls = ['0/0', '0/1', '1/1']
+    snp_ls = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p',
+        dist_bp=500000)
+    gen_ls = ['0/0', '0/1', '1/1']
 
-# Opening file
-all_df = pd.read_csv(file)
-all_df = all_df[(all_df['SNP'].isin(snp_ls)) & (all_df['Gen'] != 'other')
-                & (all_df['Genotype'].isin(gen_ls))]
+    # Opening file
+    all_df = pd.read_csv(file)
+    all_df = all_df[(all_df['SNP'].isin(snp_ls)) & (all_df['Gen'] != 'other')
+                    & (all_df['Genotype'].isin(gen_ls))]
 
     # Dataset description
     # number_catvalues_per_var(all_df.drop(['Allele', 'ref', 'alt'], axis=1),
@@ -474,7 +474,6 @@ all_df = all_df[(all_df['SNP'].isin(snp_ls)) & (all_df['Gen'] != 'other')
 
         # INDIVIDUAL PLOTS
         for cpg in list:
-            fig. ax = plt.subplots()
             cpg_df = median_df[median_df['cpg'] == cpg].copy()
             snp = str(cpg_df['SNP'].unique().tolist())[2:-2]
             print(snp)
