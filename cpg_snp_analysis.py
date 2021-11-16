@@ -479,10 +479,10 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
             #                 sharex=False, sharey=False)
             # g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_EXTRA_{cpg}.png')
             g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-                            y='log_lik_ratio', x='Gen', kind= 'swarm',
+                            y='log_lik_ratio', x='Gen', kind= 'box',
                             height=6, aspect=0.9, hue='phenotype',
                             sharex=False, sharey=False)
-            g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_EXTRA_{cpg}_het.png')
+            g1.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_EXTRA_{cpg}_het.png')
         except Exception as err:
             print(f'ERROR WITH cpg {cpg} ', err)
     for cpg in cpgs_plot:
@@ -494,10 +494,10 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis', unit='cpg'):
             #                 sharex=False, sharey=False)
             # g.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_EXTRA_{cpg}.png')
             g1 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-                            y='log_lik_ratio', x='Gen', kind= 'swarm',
+                            y='log_lik_ratio', x='Gen', kind= 'box',
                             height=6, aspect=0.9, hue='phenotype',
                             sharex=False, sharey=False)
-            g1.savefig(f'{dir_out}/swarmplot_median_all_ratio_GenPhen_EXTRA_{cpg}_het.png')
+            g1.savefig(f'{dir_out}/Boxplot_median_all_ratio_GenPhen_distribution_{cpg}_het.png')
         except Exception as err:
             print(f'ERROR WITH cpg {cpg} ', err)
 
