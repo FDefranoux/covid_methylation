@@ -8,6 +8,7 @@ from scipy.stats import spearmanr
 import numpy as np
 import os
 import sys
+import matplotlib.patches as mpatches
 
 file = 'Filtered_nano_bam_files_all_samples.csv'
 file_snp = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
@@ -371,6 +372,171 @@ def spearman_correlation_plot(stat_df, unit='cpg', n_site=2, out_dir='', title_s
         g.savefig(f'{out_dir}/minuslog10_Spearman_pvalue_{unit}_{title_supp}.png')
 
 
+def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', width_var=None, hatch_var=None, ax=None, replace_val={}):
+    dict_colors = dict_colors.copy()
+    if hue_var:
+        if not isinstance(dict_colors, dict):
+            dict_colors = {hue_val: sns.color_palette(dict_colors)[n] for n, hue_val in enumerate(df[hue_var].unique())}
+
+    if hatch_var:
+        hatch_list = ['/', '|', '-', '\ ', '+', 'x', 'o', 'O', '.', '*']
+        assert len(hatch_list) > df[hatch_var].nunique(), 'Hatching list not big enough, recombination to do'
+    else:
+        hatch_list = ['', '', '']
+    print(dict_colors)
+    g2 = sns.boxplot(data=df, x=x_var, y=y_var, orient='v', hue=hue_var,
+                     palette=dict_colors, ax=ax)
+
+    dict_var = {'Hue': hue_var, 'Width': width_var, 'Hatch': hatch_var}
+    blou = df.copy()
+    for key, var in dict_var.items():
+        n = 0
+        if var:
+            for val in blou[var].unique():
+                blou.loc[blou[var] == val, key] = n
+                n = n+1
+        else:
+            blou[key] = 0
+
+    list_var = set([x_var] + list(dict_var.keys()) + [val for val in dict_var.values() if val is not None])
+    art_df = blou[list_var].value_counts().reset_index()
+    if hue_var:
+        art_df.sort_values([x_var, hue_var], inplace=True)
+    else:
+        art_df.sort_values([x_var], inplace=True)
+
+    # assert len(art_df.index) == len(g2.artists), 'One or several variables are affected to non-existent patches'
+    art_df.index = g2.artists
+    for art in g2.artists:
+        art.set_hatch(hatch_list[int(art_df.loc[art, 'Hatch'])])
+        art.set_linewidth((art_df.loc[art, 'Width']+1)*2)
+
+    if replace_val:
+        for key, val in replace_val.items():
+            dict_colors[val] = dict_colors.pop(key)
+
+    # print(art_df)
+    contour_line = sns.color_palette('dark')[-3]
+    print(dict_colors.items())
+    if hue_var == hatch_var == width_var:
+        legend_hue = g2.legend(handles=[mpatches.Patch(facecolor=val, label=key,
+                               lw=(art_df.loc[art_df[hue_var] == key, 'Width'][0]+1)*2,
+                               ec=contour_line,
+                               hatch=hatch_list[int(art_df.loc[art_df[hue_var] == key, 'Hatch'][0])]
+                               ) for key, val in dict_colors.items()],
+                               title=hue_var, loc=2)
+
+    elif hue_var == hatch_var:
+        legend_hue = g2.legend(handles=[mpatches.Patch(facecolor=val, label=key,
+                               lw=2, ec=contour_line,
+                               hatch=hatch_list[int(art_df.loc[art_df[hue_var] == key, 'Hatch'][0])]
+                               ) for key, val in dict_colors.items()],
+                               title=hue_var, loc=2)
+        g2.add_artist(legend_hue)
+        try:
+            legend_width = g2.legend(handles=[mpatches.Patch(facecolor='white', label=key,
+                                     lw=(art_df.loc[art_df[width_var] == key, 'Width'][0]+1)*2,
+                                     ec=contour_line
+                                     ) for key, val in art_df[[width_var, 'Width']].value_counts().index.tolist()],
+                                     title=width_var, loc=1)
+        except:
+            pass
+
+    elif hue_var == width_var:
+
+        legend_hue = g2.legend(handles=[mpatches.Patch(facecolor=val, label=key,
+                               lw=(art_df.loc[art_df[hue_var] == key, 'Width'][0]+1)*2,
+                               ec=contour_line
+                               ) for key, val in dict_colors.items()],
+                               title=hue_var, loc=2)
+        g2.add_artist(legend_hue)
+        try:
+            legend_hatch = g2.legend(handles=[mpatches.Patch(facecolor='white',
+                                     label=key, lw=2, ec=contour_line,
+                                     hatch=hatch_list[int(art_df.loc[art_df[hatch_var] == key, 'Hatch'][0])]
+                                     ) for key, val in art_df[[hatch_var, 'Hatch']].value_counts().index.tolist()],
+                                     title=hatch_var, loc=1)
+        except:
+            pass
+    elif hatch_var == width_var:
+        legend_hue = g2.legend(handles=[mpatches.Patch(facecolor=val, label=key,
+                               lw=2, ec=contour_line
+                               ) for key, val in dict_colors.items()],
+                               title=hue_var, loc=2)
+        g2.add_artist(legend_hue)
+        try:
+            legend_hatch = g2.legend(handles=[mpatches.Patch(facecolor='white',
+                                     label=key, ec=contour_line,
+                                     lw=(art_df.loc[art_df[width_var] == key, 'Width'][0]+1)*2,
+                                     hatch=hatch_list[int(art_df.loc[art_df[hatch_var] == key, 'Hatch'][0])]
+                                     ) for key, val in art_df[[hatch_var, 'Hatch']].value_counts().index.tolist()],
+                                     title=hatch_var, loc=1)
+        except:
+            pass
+    else:
+        legend_hue = g2.legend(handles=[mpatches.Patch(facecolor=val, label=key,
+                               lw=2, ec=contour_line
+                               ) for key, val in dict_colors.items()],
+                               title=hue_var, loc=2)
+        g2.add_artist(legend_hue)
+        try:
+            legend_hatch = g2.legend(handles=[mpatches.Patch(facecolor='white',
+                                     label=key, lw=2, ec=contour_line,
+                                     hatch=hatch_list[int(art_df.loc[art_df[hatch_var] == key, 'Hatch'][0])]
+                                     ) for key, val in art_df[[hatch_var, 'Hatch']].value_counts().index.tolist()],
+                                     title=hatch_var, loc=1)
+            g2.add_artist(legend_hatch)
+        except:
+            pass
+        try:
+            legend_width = g2.legend(handles=[mpatches.Patch(facecolor='white',
+                                     label=key, lw=(art_df.loc[art_df[width_var] == key, 'Width'][0]+1)*2,
+                                     ec=contour_line
+                                     ) for key, val in art_df[[width_var, 'Width']].value_counts().index.tolist()],
+                                     title=width_var, loc=3)
+        except:
+            pass
+    return g2
+
+
+def setup_customizedboxplot_cpg_analysis(cpg_df, snp):
+    colors_hom = {'0/0':'#1678F5', '0/1':'#2aa69a', '1/1':'#3ED43E'} # Genotype colors
+    colors_het = {0:'#1678F5', 1:'#3ED43E'} # Haplotype colors
+    colors_phen = {'Mild':'#f0f0f5', 'Severe':'#c2c2d6'} # Phenotype colors
+    cpg_df.sort_values(['phenotype', 'Genotype', 'Gen'], inplace=True)
+    alls = snp.split(':')[-2:]
+    replace_val = {'Genotype': {'0/0': alls[0]+'/'+alls[0],
+                                '0/1': alls[0]+'/'+alls[1],
+                                '1/1': alls[1]+'/'+alls[1]},
+                   'Gen': {0: alls[0], 1: alls[1]}}
+    fig, ax = plt.subplots(2, 3, figsize=(17,10))
+    boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='phenotype',
+                                 dict_colors=colors_phen,
+                                 hatch_var='phenotype', ax=ax[0,0])
+    ax[0,0].set(title='Phenotype')
+    boxplot_customized(cpg_df, 'Genotype', 'log_lik_ratio', hue_var='Genotype',
+                                 dict_colors=colors_hom,
+                                 width_var=None, ax=ax[0,1], replace_val=replace_val['Genotype'])
+    ax[0,1].set(title='Genotype', xticklabels=replace_val['Genotype'].values())
+    boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='Genotype',
+                                 dict_colors=colors_hom,
+                                 hatch_var='phenotype', ax=ax[0,2], replace_val=replace_val['Genotype'])
+    ax[0,2].set(title='Genotype X Phenotype')
+    boxplot_customized(cpg_df[cpg_df['Genotype'] == '0/1'], 'phenotype', 'log_lik_ratio',
+                                  hue_var='phenotype', dict_colors=colors_phen,
+                                  hatch_var='phenotype', width_var=None, ax=ax[1,0])
+    ax[1,0].set(title='Heterozygous Phenotype')
+    boxplot_customized(cpg_df[cpg_df['Genotype'] == '0/1'], 'Gen', 'log_lik_ratio',
+                                  hue_var='Gen', dict_colors=colors_het,
+                                  hatch_var=None, width_var=None, ax=ax[1,1], replace_val=replace_val['Gen'])
+    ax[1,1].set(title='Heterozygous Haplotype', xticklabels=replace_val['Gen'].values())
+    boxplot_customized(cpg_df[cpg_df['Genotype'] == '0/1'], 'phenotype', 'log_lik_ratio',
+                                  hue_var='Gen', dict_colors=colors_het,
+                                  hatch_var='phenotype', width_var=None, ax=ax[1,2], replace_val=replace_val['Gen'])
+    ax[1,2].set(title='Heterozygous Haplotype X Phenotype')
+    plt.suptitle(f'CpG {cpg} associated with SNP {snp}')
+    fig.savefig(f'Multiplots_{cpg}.png')
+
 # MAIN
 def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cpg'):
     if not os.path.exists(dir_out):
@@ -387,45 +553,45 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
     all_df = all_df[(all_df['SNP'].isin(snp_ls)) & (all_df['Gen'] != 'other')
                     & (all_df['Genotype'].isin(gen_ls))]
 
-    # READNAME
-    for var in ['read_name', 'cpg']:
-        for unit in ['SNP', 'name']:
-        # unit='cpg'
-        # var='read_name'
-            try:
-                print(unit)
-                count = all_df.groupby(['phenotype','CHR', unit]).count()[var].reset_index()
-                count.to_csv(f'FROZEN_results_cpg_snp_analysis/special_plots/Count_{var}_per_{unit}.csv')
-                nunique = all_df.groupby(['phenotype','CHR', unit]).nunique()[var].reset_index()
-                nunique.to_csv(f'FROZEN_results_cpg_snp_analysis/special_plots/Nunique_{var}_per_{unit}.csv')
-                unit_count = count[unit].nunique()
-                if unit == 'SNP':
-                    g_count = sns.catplot(data=count, y=unit, x=var, col='phenotype',
-                                          kind='bar', sharex=False, sharey=False)
-                    g_nunique = sns.catplot(data=nunique, y=unit, x=var, col='phenotype',
-                                          kind='bar', sharex=False, sharey=False)
-                else:
-                    g_count = sns.catplot(data=count, y=unit, x=var, col='phenotype',
-                                          row='CHR', kind='bar', aspect=1.5, height=15,
-                                          sharex=False, sharey=False)
-                    g_nunique = sns.catplot(data=nunique, y=unit, x=var, col='phenotype',
-                                          row='CHR', kind='bar', aspect=1.5, height=15,
-                                          sharex=False, sharey=False)
-                g_count.savefig(f'FROZEN_results_cpg_snp_analysis/special_plots/Count_{var}_per_{unit}.png')
-                g_nunique.savefig(f'FROZEN_results_cpg_snp_analysis/special_plots/Nunique_{var}_per_{unit}.png')
-            except Exception as err:
-                print(err)
+    # # READNAME
+    # for var in ['read_name', 'cpg']:
+    #     for unit in ['SNP', 'name']:
+    #     # unit='cpg'
+    #     # var='read_name'
+    #         try:
+    #             print(unit)
+    #             count = all_df.groupby(['phenotype','CHR', unit]).count()[var].reset_index()
+    #             count.to_csv(f'FROZEN_results_cpg_snp_analysis/special_plots/Count_{var}_per_{unit}.csv')
+    #             nunique = all_df.groupby(['phenotype','CHR', unit]).nunique()[var].reset_index()
+    #             nunique.to_csv(f'FROZEN_results_cpg_snp_analysis/special_plots/Nunique_{var}_per_{unit}.csv')
+    #             unit_count = count[unit].nunique()
+    #             if unit == 'SNP':
+    #                 g_count = sns.catplot(data=count, y=unit, x=var, col='phenotype',
+    #                                       kind='box', sharex=False, sharey=False)
+    #                 g_nunique = sns.catplot(data=nunique, y=unit, x=var, col='phenotype',
+    #                                       kind='box', sharex=False, sharey=False)
+    #             else:
+    #                 g_count = sns.catplot(data=count, y=unit, x=var, col='phenotype',
+    #                                       kind='bar', aspect=1.5, height=15,
+    #                                       sharex=False, sharey=False)
+    #                 g_nunique = sns.catplot(data=nunique, y=unit, x=var, col='phenotype',
+    #                                       kind='bar', aspect=1.5, height=15,
+    #                                       sharex=False, sharey=False)
+    #             g_count.savefig(f'FROZEN_results_cpg_snp_analysis/special_plots/Counts_{var}_per_{unit}.png')
+    #             g_nunique.savefig(f'FROZEN_results_cpg_snp_analysis/special_plots/Nuniques_{var}_per_{unit}.png')
+    #         except Exception as err:
+    #             print(err)
 
 
     # Dataset description
     # number_catvalues_per_var(all_df.drop(['Allele', 'ref', 'alt'], axis=1),
     #     'name', lim_values=5).to_csv('Numbervalues_persamples.csv')
 
-    # # Median over the read_name with same Allele calling
-    # median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
-    #                             'SNP', 'Genotype', 'Gen']).median().reset_index()
-    # median_df = median_df.sort_values(by=['Gen'], ascending=False)
-    # median_df = median_df.sort_values(by=['CHR', 'SNP', 'Genotype', 'phenotype'])
+    # Median over the read_name with same Allele calling
+    median_df = all_df.groupby(['phenotype', 'name', 'CHR', 'cpg',
+                                'SNP', 'Genotype', 'Gen']).median().reset_index()
+    median_df = median_df.sort_values(by=['Gen'], ascending=False)
+    median_df = median_df.sort_values(by=['CHR', 'SNP', 'Genotype', 'phenotype'])
     #
     # # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
     #
@@ -476,13 +642,15 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
     # # CPGs of interest
     # # cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg'].unique()
     # # highest p-val for highmildhighsev : ['17:46065976:1', '12:112942465:1', '21:33229986:3'] # highest rho
-    # dict_cpgs = {'INTEREST': ['17:46768336:3', '6:33069193:2'],
-    #                 'HIGHmildHIGHsev': ['12:112925744:1', '17:46065976:1', '21:33229986:3'],
-    #                 'EXTRA': ['3:45848456:1', '21:33226777:1', '21:33242527:1']}
-    # # del stat
-    #
-    # for supp_title, list in dict_cpgs.items():
-    #
+
+    dict_cpgs = {'INTEREST': ['17:46768336:3', '6:33069193:2'],
+                 'HIGHmildHIGHsev': ['12:112925744:1', '17:46065976:1', '21:33229986:3'],
+                 'EXTRA': ['3:45848456:1', '21:33226777:1', '21:33242527:1']}
+    dict_cpgs = median_df['cpg'][:10].to_dict(orient='list')
+    # TODO: get the number of bix tht we will have in each condition to set up the conditions automatically on i for pattern and line
+
+    for supp_title, list in dict_cpgs.items():
+
     #     # df = median_df[median_df['cpg'].isin(list)]
     #     # GENERAL PLOT GENOTYPE
     #     # g = sns.catplot(data=df,
@@ -500,63 +668,63 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
     #     #                 sharex=False, sharey=False, )
     #     # g.savefig(f'{dir_out}/Boxplot_median_ratio_GenPhen_all_{supp_title}_het.png')
     #
-    #     # INDIVIDUAL PLOTS
-    #     for cpg in list:
-    #         cpg_df = median_df[median_df['cpg'] == cpg].copy()
-    #         snp = str(cpg_df['SNP'].unique().tolist())[2:-2]
-    #         print(snp)
-    #
-    #         try:
-    #             # Individual per genotype
-    #             # 3 way genotype
-    #             # g1 = sns.catplot(data=cpg_df, y='log_lik_ratio',
-    #             #                 x='Genotype', orient='v', kind= 'box',
-    #             #                 height=6, aspect=0.9,
-    #             #                 sharex=False, sharey=False)
-    #             # g1.set(title=f'CpG {cpg} associated with SNP {snp}')
-    #             # g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}.png')
-    #             # 2 way phenotype
-    #             g2 = sns.catplot(data=cpg_df, y='log_lik_ratio',
-    #                             x='phenotype', orient='v', kind= 'box',
-    #                             height=6, aspect=0.9,
-    #                             sharex=False, sharey=False)
-    #             g2.set(title=f'CpG {cpg} associated with SNP {snp}')
-    #             g2.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}.png')
-    #             # 6 way
-    #             # g3 = sns.catplot(data=cpg_df, y='log_lik_ratio',
-    #             #                 x='Genotype', orient='v', kind= 'box',
-    #             #                 height=6, aspect=0.9, hue='phenotype',
-    #             #                 sharex=False, sharey=False)
-    #             # g3.set(title=f'CpG {cpg} associated with SNP {snp}')
-    #             # g3.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}.png')
-    #
-    #             # Individual for heterozygotes
-    #             # 4 way
-    #             # g4 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-    #             #                 y='log_lik_ratio', x='Gen', kind= 'box',
-    #             #                 height=6, aspect=0.9, hue='phenotype',
-    #             #                 sharex=False, sharey=False)
-    #             # g4.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
-    #             # g4.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}_het.png')
-    #
-    #             # # 2 way allele
-    #             # g5 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-    #             #                  y='log_lik_ratio', x='Gen', kind= 'box',
-    #             #                  height=6, aspect=0.9,
-    #             #                  sharex=False, sharey=False)
-    #             # g5.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
-    #             # g5.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}_het.png')
-    #
-    #             # 2 way phenotype
-    #             g6 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
-    #                             y='log_lik_ratio', x='phenotype', kind= 'box',
-    #                             height=6, aspect=0.9,
-    #                             sharex=False, sharey=False)
-    #             g6.set(title=f'CpG {cpg} associated with SNP {snp}')
-    #             g6.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}_het.png')
-    #
-    #         except Exception as err:
-    #             print(f'ERROR WITH cpg {cpg} ', err)
+        # INDIVIDUAL PLOTS
+        for cpg in list:
+            cpg_df = median_df[median_df['cpg'] == cpg].copy()
+            snp = str(cpg_df['SNP'].unique().tolist())[2:-2]
+            print(snp)
+            setup_customizedboxplot_cpg_analysis(cpg_df, snp)
+            # try:
+                # Individual per genotype
+                # 3 way genotype
+                # g1 = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                #                 x='Genotype', orient='v', kind= 'box',
+                #                 height=6, aspect=0.9,
+                #                 sharex=False, sharey=False)
+                # g1.set(title=f'CpG {cpg} associated with SNP {snp}')
+                # g1.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}.png')
+                # 2 way phenotype
+                # g2 = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                #                 x='phenotype', orient='v', kind= 'bar',
+                #                 height=6, aspect=0.9,
+                #                 sharex=False, sharey=False, cmap='viridis')
+                # g2.set(title=f'CpG {cpg} associated with SNP {snp}')
+                # g2.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}.png')
+                # 6 way
+                # g3 = sns.catplot(data=cpg_df, y='log_lik_ratio',
+                #                 x='Genotype', orient='v', kind= 'box',
+                #                 height=6, aspect=0.9, hue='phenotype',
+                #                 sharex=False, sharey=False)
+                # g3.set(title=f'CpG {cpg} associated with SNP {snp}')
+                # g3.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}.png')
+
+                # Individual for heterozygotes
+                # 4 way
+                # g4 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                #                 y='log_lik_ratio', x='Gen', kind= 'box',
+                #                 height=6, aspect=0.9, hue='phenotype',
+                #                 sharex=False, sharey=False)
+                # g4.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
+                # g4.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_GenPhen_{supp_title}_{cpg}_het.png')
+
+                # # 2 way allele
+                # g5 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+                #                  y='log_lik_ratio', x='Gen', kind= 'box',
+                #                  height=6, aspect=0.9,
+                #                  sharex=False, sharey=False)
+                # g5.set(title=f'CpG {cpg} associated with SNP {snp}', xlabel='Allele')
+                # g5.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Gen_{supp_title}_{cpg}_het.png')
+
+                # 2 way phenotype
+            #     g6 = sns.catplot(data=cpg_df[cpg_df['Genotype'] == '0/1'],
+            #                     y='log_lik_ratio', x='phenotype', kind= 'box',
+            #                     height=6, aspect=0.9,
+            #                     sharex=False, sharey=False, cmap='viridis')
+            #     g6.set(title=f'CpG {cpg} associated with SNP {snp}')
+            #     g6.savefig(f'{dir_out}/Boxplot_median_cpg_ratio_Phen_{supp_title}_{cpg}_het.png')
+            #
+            # except Exception as err:
+            #     print(f'ERROR WITH cpg {cpg} ', err)
 
 # workflow slide and stat with number of loci cpg site in total average per loci
 
