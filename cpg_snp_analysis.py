@@ -9,12 +9,17 @@ import numpy as np
 import os
 import sys
 import matplotlib.patches as mpatches
+import socket
 
-file = 'Filtered_nano_bam_files_all_samples.csv'
-file_snp = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
-dir_out='results_cpg_snp_analysis'
+if 'Fanny' in socket.gethostname():
+    abs_dir = '~//home/fanny/Work/EBI/covid_nanopore'
+else:
+    abs_dir = '/nfs/research/birney/users/fanny/covid_nanopore'
+
+file = f'{abs_dir}/FROZEN_Nov2021_cpg_snp_analysis/Filtered_nano_bam_files_all_samples.csv'
+file_snp = f'{abs_dir}/FROZEN_Nov2021_cpg_snp_analysis/significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
+dir_out= f'{abs_dir}/FROZEN_Nov2021_cpg_snp_analysis/results_cpg_snp_analysis'
 unit='cpg'
-
 
 def select_SNP_per_pvalue(file, pval_col, dist_bp=500000):
     snp_df = pd.read_table(file, usecols=['#CHR', 'POS', 'SNP', pval_col])
