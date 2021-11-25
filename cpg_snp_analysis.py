@@ -499,7 +499,9 @@ def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', widt
     return g2
 
 
-def setup_customizedboxplot_cpg_analysis(cpg_df, snp):
+def setup_customizedboxplot_cpg_analysis(cpg_df, dir_out):
+    cpg = str(cpg_df['cpg'].unique())[2:-2]
+    snp = str(cpg_df['SNP'].unique())[2:-2]
     colors_hom = {'0/0':'#1678F5', '0/1':'#2aa69a', '1/1':'#3ED43E'} # Genotype colors
     colors_het = {0:'#1678F5', 1:'#3ED43E'} # Haplotype colors
     colors_phen = {'Mild':'#f0f0f5', 'Severe':'#c2c2d6'} # Phenotype colors
@@ -535,7 +537,7 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, snp):
                                   hatch_var='phenotype', width_var=None, ax=ax[1,2], replace_val=replace_val['Gen'])
     ax[1,2].set(title='Heterozygous Haplotype X Phenotype')
     plt.suptitle(f'CpG {cpg} associated with SNP {snp}')
-    fig.savefig(f'Multiplots_{cpg}.png')
+    fig.savefig(f'{dir_out}/Multiplots_{cpg}.png')
 
 # MAIN
 def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cpg'):
@@ -646,7 +648,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
     dict_cpgs = {'INTEREST': ['17:46768336:3', '6:33069193:2'],
                  'HIGHmildHIGHsev': ['12:112925744:1', '17:46065976:1', '21:33229986:3'],
                  'EXTRA': ['3:45848456:1', '21:33226777:1', '21:33242527:1']}
-    dict_cpgs = median_df['cpg'][:10].to_dict(orient='list')
+    # dict_cpgs = median_df['cpg'][:10].to_dict('list')
     # TODO: get the number of bix tht we will have in each condition to set up the conditions automatically on i for pattern and line
 
     for supp_title, list in dict_cpgs.items():
@@ -672,8 +674,9 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
         for cpg in list:
             cpg_df = median_df[median_df['cpg'] == cpg].copy()
             snp = str(cpg_df['SNP'].unique().tolist())[2:-2]
+            cpg_df['Gen'].replace({'alt': 1, 'ref':0}, inplace=True)
             print(snp)
-            setup_customizedboxplot_cpg_analysis(cpg_df, snp)
+            setup_customizedboxplot_cpg_analysis(cpg_df, dir_out=dir_out)
             # try:
                 # Individual per genotype
                 # 3 way genotype
