@@ -381,7 +381,7 @@ def pval_plot(stat_df, xvar, pval_col, pval_cutoff=0.01, n_site=2, format_xaxis=
                 var_df = stat.loc[stat['CHR'] == chr, xvar].sort_values()
                 for val in var_df.unique():
                     stat.loc[(stat['cpg'] == val)
-                        & (stat['CHR'] == chr), f'{xvar}_unique'] = n
+                        & (stat['CHR'] == chr), f'{xvar}'] = n
                     n = n + 1
 
         # Selection best snp
@@ -401,12 +401,12 @@ def pval_plot(stat_df, xvar, pval_col, pval_cutoff=0.01, n_site=2, format_xaxis=
         g.map(sns.lineplot, xvar, 'cutoff', hue=None)
         g.map_dataframe(sns.scatterplot, xvar, 'minus_log10', hue='CHR',
             legend=True)
-        g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()['POS'].unique(),
+        g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()[xvar].unique(),
             xticklabels=stat['CHR'].unique())
         try:
             for row in stat.iterrows():
                 row = row[1]
-                g.axes[0,0].text(row[f'{xvar}_unique'], row.minus_log10 + 0.5, row.cpg_best,
+                g.axes[0,0].text(row[xvar], row.minus_log10 + 0.5, row.cpg_best,
                     horizontalalignment='left')
         except Exception as err:
             print('couldn\'t print best points', err)
@@ -540,7 +540,7 @@ def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', widt
     return g2
 
 
-def setup_customizedboxplot_cpg_analysis(cpg_df, dir_out):
+def setup_customizedboxplot_cpg_analysis(cpg_df, dir_out=''):
     cpg = str(cpg_df['cpg'].unique())[2:-2]
     snp = str(cpg_df['SNP'].unique())[2:-2]
     colors_hom = {'0/0':'#1678F5', '0/1':'#2aa69a', '1/1':'#3ED43E'} # Genotype colors
@@ -606,25 +606,26 @@ def main(file, dir_out='FROZEN_Nov2021_cpg_snp_analysis/special_plots', unit='cp
     # QUESTION: What should we do with the ALT calls in '0/0' and REF in '1/1'?
 
     # STATS
-    mann_whit = pd.DataFrame()
+    # mann_whit = pd.DataFrame()
     # INDIVIDUAL PLOTS
-    for cpg in median_df['cpg'].unique():
-        cpg_df = median_df[median_df['cpg'] == cpg].copy()
-        cpg_df['Gen'].replace({'alt': 1, 'ref':0}, inplace=True)
-        mwu = multiple_mann_whitney(cpg_df, ['Genotype', 'phenotype'], 'log_lik_ratio')
-        if not mwu.empty:
-            mann_whit.loc[:, cpg] = mwu['p-val']
-    # mann_whit[mann_whit < 0.05].dropna(how='all').dropna(how='all', axis=1)
-    mann_whit = mann_whit.T.reset_index().rename(columns={'index': 'cpg'})
-    mann_whit[['CHR', 'POS']] = mann_whit[unit].str.split(':', expand=True)[[
-        0, 1]].astype(int)
-    mann_whit.to_csv(f'{dir_out}/Mann_whitney_table.csv', index=False)
+    # for cpg in median_df['cpg'].unique():
+    #     cpg_df = median_df[median_df['cpg'] == cpg].copy()
+    #     cpg_df['Gen'].replace({'alt': 1, 'ref':0}, inplace=True)
+    #     mwu = multiple_mann_whitney(cpg_df, ['Genotype', 'phenotype'], 'log_lik_ratio')
+    #     if not mwu.empty:
+    #         mann_whit.loc[:, cpg] = mwu['p-val']
+    # # mann_whit[mann_whit < 0.05].dropna(how='all').dropna(how='all', axis=1)
+    # mann_whit = mann_whit.T.reset_index().rename(columns={'index': 'cpg'})
+    # mann_whit[['CHR', 'POS']] = mann_whit[unit].str.split(':', expand=True)[[
+    #     0, 1]].astype(int)
+    # mann_whit.to_csv(f'{dir_out}/Mann_whitney_table.csv', index=False)
+    mann_whit = pd.read_csv('FROZEN_Nov2021_cpg_snp_analysis/Mann_whitney_table.csv')
     pval_plot(mann_whit, 'cpg', 'MWU Mild-Severe', pval_cutoff=1, n_site=2, title_supp='MannWhitney_GenPhen_sorted', out_dir=dir_out, format_xaxis=True)
     pval_plot(mann_whit, 'cpg', 'MWU Mild-Severe', pval_cutoff=1, n_site=2, title_supp='MannWhitney_GenPhen', out_dir=dir_out, format_xaxis=False)
 
     stat = pd.read_csv('FROZEN_Nov2021_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_.csv')
     pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='Spearman_sorted', out_dir=dir_out, format_xaxis=True)
-    pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='Spearman_sorted', out_dir=dir_out, format_xaxis=True)
+    pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='Spearman', out_dir=dir_out, format_xaxis=True)
 
     # Filter
     # median_new = outliers(median_df, thresh_zscore=3)
@@ -657,7 +658,7 @@ def main(file, dir_out='FROZEN_Nov2021_cpg_snp_analysis/special_plots', unit='cp
         for cpg in list_cpg:
             cpg_df = median_df[median_df['cpg'] == cpg].copy()
             cpg_df['Gen'].replace({'alt': 1, 'ref':0}, inplace=True)
-            setup_customizedboxplot_cpg_analysis(cpg_df)
+            setup_customizedboxplot_cpg_analysis(cpg_df, dir_out=dir_out)
 
 
 if __name__ == '__main__':
