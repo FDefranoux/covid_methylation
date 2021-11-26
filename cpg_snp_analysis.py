@@ -372,15 +372,17 @@ def pval_plot(stat_df, xvar, pval_col, pval_cutoff=0.01, n_site=2, format_xaxis=
         stat['CHR'] = stat['CHR'].astype('category')
         stat['minus_log10'] = -np.log10(stat[pval_col].astype(float))
         stat['cutoff'] = -np.log10(pval_cutoff/stat.shape[0])
+        stat.sort_values('CHR', inplace=True)
 
         # Format X-axis
-        n=0
-        for chr in stat['CHR'].sort_values().unique():
-            var_df = stat.loc[stat['CHR'] == chr, xvar].sort_values()
-            for val in var_df.unique():
-                stat.loc[(stat['cpg'] == val)
-                    & (stat['CHR'] == chr), f'{xvar}_unique'] = n
-                n = n + 1
+        if format_xaxis:
+            n=0
+            for chr in stat['CHR'].sort_values().unique():
+                var_df = stat.loc[stat['CHR'] == chr, xvar].sort_values()
+                for val in var_df.unique():
+                    stat.loc[(stat['cpg'] == val)
+                        & (stat['CHR'] == chr), f'{xvar}_unique'] = n
+                    n = n + 1
 
         # Selection best snp
         best_cpg = stat[stat['cutoff'] < stat['minus_log10']].sort_values(
@@ -404,7 +406,7 @@ def pval_plot(stat_df, xvar, pval_col, pval_cutoff=0.01, n_site=2, format_xaxis=
         try:
             for row in stat.iterrows():
                 row = row[1]
-                g.axes[0,0].text(row[xvar], row.minus_log10 + 0.5, row.cpg_best,
+                g.axes[0,0].text(row[f'{xvar}_unique'], row.minus_log10 + 0.5, row.cpg_best,
                     horizontalalignment='left')
         except Exception as err:
             print('couldn\'t print best points', err)
@@ -580,7 +582,7 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, dir_out):
     fig.savefig(f'{dir_out}/Multiplots_{cpg}.png')
 
 # MAIN
-def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cpg'):
+def main(file, dir_out='FROZEN_Nov2021_cpg_snp_analysis/special_plots', unit='cpg'):
     if not os.path.exists(dir_out):
         os.makedirs(dir_out)
     # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
@@ -617,10 +619,12 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
     mann_whit[['CHR', 'POS']] = mann_whit[unit].str.split(':', expand=True)[[
         0, 1]].astype(int)
     mann_whit.to_csv(f'{dir_out}/Mann_whitney_table.csv', index=False)
-    pval_plot(mann_whit, 'cpg', 'MWU Mild-Severe', pval_cutoff=1, n_site=2, out_dir=dir_out, format_xaxis=True)
+    pval_plot(mann_whit, 'cpg', 'MWU Mild-Severe', pval_cutoff=1, n_site=2, title_supp='MannWhitney_GenPhen_sorted', out_dir=dir_out, format_xaxis=True)
+    pval_plot(mann_whit, 'cpg', 'MWU Mild-Severe', pval_cutoff=1, n_site=2, title_supp='MannWhitney_GenPhen', out_dir=dir_out, format_xaxis=False)
 
-    stat = pd.read_csv('FROZEN_results_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_.csv')
-    pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='MannWhitney_GenPhen', out_dir=dir_out, format_xaxis=True)
+    stat = pd.read_csv('FROZEN_Nov2021_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_.csv')
+    pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='Spearman_sorted', out_dir=dir_out, format_xaxis=True)
+    pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='Spearman_sorted', out_dir=dir_out, format_xaxis=True)
 
     # Filter
     # median_new = outliers(median_df, thresh_zscore=3)
