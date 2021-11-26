@@ -619,13 +619,13 @@ def main(file, dir_out='FROZEN_Nov2021_cpg_snp_analysis/special_plots', unit='cp
     # mann_whit[['CHR', 'POS']] = mann_whit[unit].str.split(':', expand=True)[[
     #     0, 1]].astype(int)
     # mann_whit.to_csv(f'{dir_out}/Mann_whitney_table.csv', index=False)
-    mann_whit = pd.read_csv('FROZEN_Nov2021_cpg_snp_analysis/Mann_whitney_table.csv')
-    pval_plot(mann_whit, 'cpg', 'MWU Mild-Severe', pval_cutoff=1, n_site=2, title_supp='MannWhitney_GenPhen_sorted', out_dir=dir_out, format_xaxis=True)
-    pval_plot(mann_whit, 'cpg', 'MWU Mild-Severe', pval_cutoff=1, n_site=2, title_supp='MannWhitney_GenPhen', out_dir=dir_out, format_xaxis=False)
+    # mann_whit = pd.read_csv('FROZEN_Nov2021_cpg_snp_analysis/Mann_whitney_table.csv')
+    # pval_plot(mann_whit, 'cpg', 'MWU Mild-Severe', pval_cutoff=1, n_site=2, title_supp='MannWhitney_GenPhen_sorted', out_dir=dir_out, format_xaxis=True)
+    # pval_plot(mann_whit, 'cpg', 'MWU Mild-Severe', pval_cutoff=1, n_site=2, title_supp='MannWhitney_GenPhen', out_dir=dir_out, format_xaxis=False)
 
     stat = pd.read_csv('FROZEN_Nov2021_cpg_snp_analysis/Stat_Analysis_log_lik_ratioVSGenotype_per_cpg_.csv')
-    pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='Spearman_sorted', out_dir=dir_out, format_xaxis=True)
-    pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='Spearman', out_dir=dir_out, format_xaxis=True)
+    # pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='Spearman_sorted', out_dir=dir_out, format_xaxis=True)
+    pval_plot(stat, 'cpg', 'Spearman correlation p_value', pval_cutoff=1, n_site=2, title_supp='Spearman', out_dir=dir_out, format_xaxis=False)
 
     # Filter
     # median_new = outliers(median_df, thresh_zscore=3)
@@ -647,18 +647,18 @@ def main(file, dir_out='FROZEN_Nov2021_cpg_snp_analysis/special_plots', unit='cp
     # cpgs_plot = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg'].unique()
     # highest p-val for highmildhighsev : ['17:46065976:1', '12:112942465:1', '21:33229986:3'] # highest rho
     #
-    dict_cpgs = {#'INTEREST': ['17:46768336:3', '6:33069193:2'],
-                 # 'HIGHmildHIGHsev': ['12:112925744:1', '17:46065976:1', '21:33229986:3'],
-                 # 'EXTRA': ['3:45848456:1', '21:33226777:1', '21:33242527:1'],
-                 'Hsev_Lmild': ['9:133271878:1','1:155209089:1'],
-                 'Lsev_Hmild': ['9:133271842:1']}
-
-    for supp_title, list_cpg in dict_cpgs.items():
-        # INDIVIDUAL PLOTS
-        for cpg in list_cpg:
-            cpg_df = median_df[median_df['cpg'] == cpg].copy()
-            cpg_df['Gen'].replace({'alt': 1, 'ref':0}, inplace=True)
-            setup_customizedboxplot_cpg_analysis(cpg_df, dir_out=dir_out)
+    # dict_cpgs = {#'INTEREST': ['17:46768336:3', '6:33069193:2'],
+    #              # 'HIGHmildHIGHsev': ['12:112925744:1', '17:46065976:1', '21:33229986:3'],
+    #              # 'EXTRA': ['3:45848456:1', '21:33226777:1', '21:33242527:1'],
+    #              'Hsev_Lmild': ['9:133271878:1','1:155209089:1'],
+    #              'Lsev_Hmild': ['9:133271842:1']}
+    #
+    # for supp_title, list_cpg in dict_cpgs.items():
+    #     # INDIVIDUAL PLOTS
+    #     for cpg in list_cpg:
+    #         cpg_df = median_df[median_df['cpg'] == cpg].copy()
+    #         cpg_df['Gen'].replace({'alt': 1, 'ref':0}, inplace=True)
+    #         setup_customizedboxplot_cpg_analysis(cpg_df, dir_out=dir_out)
 
 
 if __name__ == '__main__':
