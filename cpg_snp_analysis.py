@@ -12,7 +12,7 @@ import matplotlib.patches as mpatches
 import socket
 
 if 'Fanny' in socket.gethostname():
-    abs_dir = '~//home/fanny/Work/EBI/covid_nanopore'
+    abs_dir = '/home/fanny/Work/EBI/covid_nanopore'
 else:
     abs_dir = '/nfs/research/birney/users/fanny/covid_nanopore'
 
@@ -606,7 +606,7 @@ def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cp
     # STATS
     mann_whit = pd.DataFrame()
     # INDIVIDUAL PLOTS
-    for cpg in list_cpg:
+    for cpg in median_df['cpg'].unique():
         cpg_df = median_df[median_df['cpg'] == cpg].copy()
         cpg_df['Gen'].replace({'alt': 1, 'ref':0}, inplace=True)
         mwu = multiple_mann_whitney(cpg_df, ['Genotype', 'phenotype'], 'log_lik_ratio')
