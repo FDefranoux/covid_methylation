@@ -9,12 +9,17 @@ import numpy as np
 import os
 import sys
 import matplotlib.patches as mpatches
+import socket
 
-file = 'Filtered_nano_bam_files_all_samples.csv'
-file_snp = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
-dir_out='results_cpg_snp_analysis'
+if 'Fanny' in socket.gethostname():
+    abs_dir = '~//home/fanny/Work/EBI/covid_nanopore'
+else:
+    abs_dir = '/nfs/research/birney/users/fanny/covid_nanopore'
+
+file = f'{abs_dir}/FROZEN_Nov2021_cpg_snp_analysis/Filtered_nano_bam_files_all_samples.csv'
+file_snp = f'{abs_dir}/FROZEN_Nov2021_cpg_snp_analysis/significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
+dir_out= f'{abs_dir}/FROZEN_Nov2021_cpg_snp_analysis/results_cpg_snp_analysis'
 unit='cpg'
-
 
 def select_SNP_per_pvalue(file, pval_col, dist_bp=500000):
     snp_df = pd.read_table(file, usecols=['#CHR', 'POS', 'SNP', pval_col])
@@ -533,7 +538,9 @@ def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', widt
     return g2
 
 
-def setup_customizedboxplot_cpg_analysis(cpg_df):
+def setup_customizedboxplot_cpg_analysis(cpg_df, dir_out):
+    cpg = str(cpg_df['cpg'].unique())[2:-2]
+    snp = str(cpg_df['SNP'].unique())[2:-2]
     colors_hom = {'0/0':'#1678F5', '0/1':'#2aa69a', '1/1':'#3ED43E'} # Genotype colors
     colors_het = {0:'#1678F5', 1:'#3ED43E'} # Haplotype colors
     colors_phen = {'Mild':'#f0f0f5', 'Severe':'#c2c2d6'} # Phenotype colors
@@ -570,7 +577,7 @@ def setup_customizedboxplot_cpg_analysis(cpg_df):
                                   hatch_var='phenotype', width_var=None, ax=ax[1,2], replace_val=replace_val['Gen'])
     ax[1,2].set(title='Heterozygous Haplotype X Phenotype')
     plt.suptitle(f'CpG {cpg} associated with SNP {snp}')
-    fig.savefig(f'Multiplots_{cpg}.png')
+    fig.savefig(f'{dir_out}/Multiplots_{cpg}.png')
 
 # MAIN
 def main(file, dir_out='FROZEN_results_cpg_snp_analysis/special_plots', unit='cpg'):
