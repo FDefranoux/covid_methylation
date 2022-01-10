@@ -4,6 +4,7 @@ import os
 
 file_allele = 'all_nanopore_base_at_significant_snps_oncovmeth_05102021.txt'
 
+# TODO: Gather bam_analysis.py with bam_nano_filtering.py and add the grep function ???
 
 def count_table(df, t=0.90):
     df['Gen'] = 'other'
@@ -64,8 +65,6 @@ def main(file_allele):
                 nano_df, df[df['name'] == file], on=['read_name', 'CHR'])
             nano_all[['pos', 'start', 'end']] = nano_all[[
                 'pos', 'start', 'end']].astype(int)
-            # nano_all = nano_all[(nano_all['pos'] > nano_all['start'] - 500005)
-            #                     & (nano_all['pos'] < nano_all['end'] + 500005)]
 
             count_df = count_table(nano_all)
             merge = pd.merge(nano_all, count_df[['SNP', 'name', 'Genotype']],
@@ -84,11 +83,3 @@ def main(file_allele):
 
 if __name__ == '__main__':
     main(file_allele)
-
-# # Graphs
-# blou = df_global[df_global != 0]
-# blou['cut'] = pd.qcut(blou['sum'], q=4)
-# f = sns.displot(data=blou, x=blou['ref'], kde=True, col=blou['cut'], col_wrap=2, facet_kws={
-#                 'sharex': False, 'sharey': False})
-# f.savefig('histogram_ref_proportions_SNP_alleles_fromBAM.png')
-# f.savefig('histogram_ref_proportions_SNP_alleles_fromBAM.png')

@@ -660,13 +660,36 @@ def main(file, dir_out='FROZEN_Nov2021_cpg_snp_analysis/special_plots', unit='cp
     #         cpg_df['Gen'].replace({'alt': 1, 'ref':0}, inplace=True)
     #         setup_customizedboxplot_cpg_analysis(cpg_df, dir_out=dir_out)
 
+#TODO: plot p-val MWU phenotype vs p-val Spearman genotype
 
 if __name__ == '__main__':
     main(file)
 
 # TODO: descriptive statistics- number of cpg per samples (boxplot per chr?)
 # TODO: Joint model
-# transform to normal distrib 9inverse norm)
+# transform to normal distrib inverse norm)
+# INVERSE NORMALISATION
+# JOIN MODEL
+# > anova(vsx2_linear,vsx2_interaction, test = "F")
+# Analysis of Variance Table
+#
+# Model 1: invnorm(ONL) ~ standing_height_0_0 + weight_0_0 + age_when_attended_assessment_centre_0_0 +
+# genetic_sexuses_datacoding_9_0_0 + as.factor(opticalcoherence_tomography_device_id_0_0) +
+# PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 +
+# PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 +
+# PC20 + (vsx2_locus) + rs375435
+# Model 2: invnorm(ONL) ~ standing_height_0_0 + weight_0_0 + age_when_attended_assessment_centre_0_0 +
+# genetic_sexuses_datacoding_9_0_0 + as.factor(opticalcoherence_tomography_device_id_0_0) +
+# PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 +
+# PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 +
+# PC20 + (vsx2_locus) * rs375435
+# Res.Df RSS Df Sum of Sq F Pr(>F)
+# 1 31061 29341
+# 2 31054 29314 7 27.003 4.0866 0.0001714 ***
+# ---
+# Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
 # lm(medianlog ~ snp * clinical, data)
 # lm(invnorm(medianlog) ~ snp + clinical + snp * clinical, data)
 # lm(invnorm(median_log_hap) ~ allele * clinical , haplotype_data)
