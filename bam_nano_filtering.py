@@ -4,16 +4,17 @@ import glob
 
 # pd.options.display.max_rows = 2
 
-dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc00022*'
-title = '_test'
+dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/*'
+title = '_control_finemapped'
 
-def grep_target_readnames(file, list_readnames):
+def grep_target_readnames(file, list_readnames, output='nanopolish_greped'):
     with open(f'{file}_readnames.temp', 'w') as f:
         f.writelines('\n'.join(list_readnames))
         f.writelines(['\n'])
     nano_file = os.path.join('nanopolish_indexed', file + '.tsv.gz')
     os.system(f'zcat {nano_file} | head -n 1 > {file}.txt')
-    os.system(f'zcat {nano_file} | grep -f {file}_readnames.temp >> {file}.txt')
+    os.system(f'mkdir {output}')
+    os.system(f'zcat {nano_file} | grep -f {file}_readnames.temp >> {output}/{file}.txt')
     os.remove(f'{file}_readnames.temp')
 
 
@@ -59,7 +60,7 @@ def genotype_frombasecalling(df, t=0.90, print_counts=False):
     return df
 
 
-def filtering_datas(df):
+def filtering_datas(df, list_snp=[]):
     log = {}
     log['initial shape'] = str(df.shape)
 
@@ -79,6 +80,13 @@ def filtering_datas(df):
         ['read_name', 'chromosome']).size().unstack().dropna(thresh=2).index
     if len(double_chr) > 0: new_df.drop(double_chr, inplace=True)
     log['read_name in several chr'] = int(shape_diff - new_df.shape[0])
+    shape_diff = new_df.shape[0]
+
+    # Filtering for specific SNPs
+    if list_snp:
+        new_df = new_df[new_df['covid_snp'].isin(list_snp)]
+        log['snp_filtering'] = int(shape_diff - new_df.shape[0])
+
     log['final shape'] = str(new_df.shape)
     return new_df, log
 
@@ -108,10 +116,12 @@ def main(dir, title=''):
         file = os.path.basename(file).split('.')[0]
         # grep_target_readnames(file, list_readnames)
         base_file = genotype_frombasecalling(base_file, t=0.90, print_counts=False)
-        base_file, log = filtering_datas(base_file)
+        finemapped_snp = pd.read_table('finemapped', header=None)[0].to_list()
+        base_file, log = filtering_datas(base_file, list_snp=finemapped_snp)
+        # TODO: Print something with the logs ?
         base_file = base_file.astype(object)
 
-        nano = pd.read_table(f'nanopolish_grep_reads/{file}.txt', header=None, names=nano_cols)
+        nano = pd.read_table(f'nanopolish_greped/{file}.txt', header=None, names=nano_cols)
         nano['sample_id'] = file
         nano['chromosome'] = nano['chromosome'].astype(str)
         nano = nano.astype(object)
