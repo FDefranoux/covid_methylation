@@ -114,7 +114,7 @@ def main(dir, title=''):
         base_file[['chromosome', 'pos', 'ref', 'alt']] = base_file[target_snp].str.split(':', expand=True)
         list_readnames = list(base_file['read_name'].unique())
         file = os.path.basename(file).split('.')[0]
-        # grep_target_readnames(file, list_readnames)
+        grep_target_readnames(file, list_readnames)
         base_file = genotype_frombasecalling(base_file, t=0.90, print_counts=False)
         finemapped_snp = pd.read_table('finemapped', header=None)[0].to_list()
         base_file, log = filtering_datas(base_file, list_snp=finemapped_snp)
