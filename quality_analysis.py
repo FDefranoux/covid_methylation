@@ -56,6 +56,7 @@ class SamFiles:
 
 def main(dir):
     region_list = [(str(chr), pos, pos+1000000) for chr in range(1, 24) for pos in range(1,250000000, 1000000)]
+    len(region_list)
     # nanocols = ['file', 'region', 'chromosome', 'strand', 'start', 'end', 'read_name',
                 # 'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
                 # 'num_calling_strands', 'num_motifs', 'sequence']
@@ -67,9 +68,11 @@ def main(dir):
         nano_file = SamFiles.open(file)
         n = 0
         for region in region_list:
+            print(region, flush=True)
             nano_df = pd.DataFrame()
             try:
                 nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region)
+                print(nano_df.memory_usage(deep=True), nano_df.shape, flush=True)
                 # nano_df.columns = nanocols
                 nano_df[['file', 'region', 'N']] = file, str(region), n
                 nano_df[['region']].head(1).to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='a', header=False)
