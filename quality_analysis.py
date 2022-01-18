@@ -68,8 +68,8 @@ def main(dir):
                 nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region)
                 nano_df.columns = nanocols
                 nano_df[['file', 'region']] = file, str(region)
-                nano_df.nunique().to_csv('Nunique_nanopolish_indexed.csv', mode='a', header=False)
-                nano_df.size().to_csv('Size_nanopolish_indexed.csv', mode='a', header=False)
+                pd.DataFrame(nano_df.nunique()).T.to_csv('Nunique_nanopolish_indexed.csv', mode='a', header=False)
+                pd.DataFrame(nano_df.size()).T.to_csv('Size_nanopolish_indexed.csv', mode='a', header=False)
             except:
                 print(f'Error with iterating over file {file}-{region}')
 
