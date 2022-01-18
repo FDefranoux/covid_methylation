@@ -80,8 +80,9 @@ def main(dir):
                 nano_df.nunique().to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='a', header=False)
                 n = n + 1
                 # pd.DataFrame(nano_df.groupby(['file', 'region']).size()).T.to_csv('Size_nanopolish_indexed.csv', mode='a', header=False)
-            except:
-                print(f'Error with iterating over file {file}-{region}')
+            except Exception as err:
+                print(err, flush=True)
+                print(f'Error with iterating over file {file}-{region}', flush=True)
 
     # df = pd.read_csv(file)
     # os.system('mkdir quality')
