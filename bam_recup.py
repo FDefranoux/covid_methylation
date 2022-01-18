@@ -172,12 +172,63 @@ def main(file_list, hits_table, output, method='pileup'):
         recup_bam_perregion_pileup(file_ls, list_region, output_names=output)
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
+#
+#     parser = argparse.ArgumentParser(description='Recuperation of BAM datas')
+#     parser.add_argument('-f', '--file_list', type=str, default=file_list)
+#     parser.add_argument('-t', '--hits_table', type=str, default=hits_table)
+#     parser.add_argument('-o', '--output', default=output)
+#     parser.add_argument('-m', '--bam_method', type=str, default='pileup')
+#     args = parser.parse_args()
+#     main(**vars(args))
 
-    parser = argparse.ArgumentParser(description='Recuperation of BAM datas')
-    parser.add_argument('-f', '--file_list', type=str, default=file_list)
-    parser.add_argument('-t', '--hits_table', type=str, default=hits_table)
-    parser.add_argument('-o', '--output', default=output)
-    parser.add_argument('-m', '--bam_method', type=str, default='pileup')
-    args = parser.parse_args()
-    main(**vars(args))
+
+#### TOMAS VERSION ####
+
+import os
+import pysam
+
+def bam_extract(bam, chr = '1', pos = 155164919):
+	bases_and_read_ids = {}
+	samfile = pysam.Samfile(bam, "rb")
+	for pup in samfile.pileup(chr, pos, pos+1):
+		for read in pup.pileups:
+			if not read.is_del:
+				if pup.pos == pos:
+					bases_and_read_ids[read.alignment.query_name]  = read.alignment.query_sequence[read.query_position]
+	samfile.close()
+	return bases_and_read_ids
+
+outputdir = "output"
+
+snps = {}
+snp_list = "significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt"
+with open(snp_list) as file:
+	for line in file:
+		items = line.rstrip().split("\t")
+		if len(items)>1:
+			if items[4] != "SNP":
+				if items[4] not in snps.keys():
+					snps[items[4]] = {}
+				snps[items[4]]['chr'] = items[0]
+				snps[items[4]]['pos'] = items[1]
+
+
+file_list = "file_list_all.txt"
+with open(file_list) as file:
+	bams = file.readlines()
+
+file.close()
+index = int(os.environ['LSB_JOBINDEX'])-1
+bam = bams[index].rstrip()
+
+sample_id = os.path.basename(bam).split(".")[0]
+outputfile = outputdir + "/" + sample_id
+
+with open(outputfile, "w") as out:
+	for s in snps:
+		reads = bam_extract(bam, snps[s]['chr'], int(snps[s]['pos'])-1)
+		for r in reads:
+			out.write(sample_id + "\t" + s + "\t" + r + "\t" + reads[r] + "\n")
+
+out.close()

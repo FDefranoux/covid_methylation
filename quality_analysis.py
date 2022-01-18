@@ -3,7 +3,7 @@ import seaborn as sns
 import os
 import glob
 
-dir = ''
+dir = 'nanopolish_indexed/*.tsv.gz'
 # file = 'Filtered_nano_bam_files_test.csv'
 
 class SamFiles:
