@@ -60,7 +60,7 @@ def main(dir):
                 'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
                 'num_calling_strands', 'num_motifs', 'sequence']
     pd.DataFrame(nanocols).T.to_csv('Nunique_nanopolish_indexed.csv', mode='w', header=False)
-    pd.DataFrame(nanocols).T.to_csv('Size_nanopolish_indexed.csv', mode='w', header=False)
+    # pd.DataFrame(nanocols).T.to_csv('Size_nanopolish_indexed.csv', mode='w', header=False)
     for file in glob.glob(dir):
         # Opening the allele_table
         nano_file = SamFiles.open(file)
@@ -71,7 +71,7 @@ def main(dir):
                 nano_df.columns = nanocols
                 nano_df[['file', 'region']] = file, str(region)
                 pd.DataFrame(nano_df.groupby(['file', 'region']).nunique()).T.to_csv('Nunique_nanopolish_indexed.csv', mode='a', header=False)
-                pd.DataFrame(nano_df.groupby(['file', 'region']).size()).T.to_csv('Size_nanopolish_indexed.csv', mode='a', header=False)
+                # pd.DataFrame(nano_df.groupby(['file', 'region']).size()).T.to_csv('Size_nanopolish_indexed.csv', mode='a', header=False)
             except:
                 print(f'Error with iterating over file {file}-{region}')
 
