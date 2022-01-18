@@ -1,6 +1,7 @@
 import pandas as pd
 import seaborn as sns
 import os
+import pysam
 import glob
 
 dir = 'nanopolish_indexed/*.tsv.gz'
