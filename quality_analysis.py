@@ -67,6 +67,7 @@ def main(dir):
         nano_file = SamFiles.open(file)
         n = 0
         for region in region_list:
+            nano_df = pd.DataFrame()
             try:
                 nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region)
                 # nano_df.columns = nanocols
