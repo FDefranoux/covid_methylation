@@ -57,8 +57,8 @@ class SamFiles:
 def main(dir):
     region_list = [(str(chr), pos, pos+10000000) for chr in range(1, 24) for pos in range(1,250000000, 10000000)]
     # nanocols = ['file', 'region', 'chromosome', 'strand', 'start', 'end', 'read_name',
-                'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
-                'num_calling_strands', 'num_motifs', 'sequence']
+                # 'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
+                # 'num_calling_strands', 'num_motifs', 'sequence']
     for file in glob.glob(dir):
         # pd.DataFrame(nanocols).T.to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='w', header=False)
         # pd.DataFrame(nanocols).T.to_csv('Size_nanopolish_indexed.csv', mode='w', header=False)
