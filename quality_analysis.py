@@ -75,9 +75,9 @@ def main(dir):
                 print(nano_df.memory_usage(deep=True), nano_df.shape, flush=True)
                 # nano_df.columns = nanocols
                 nano_df[['file', 'region', 'N']] = file, str(region), n
-                nano_df[['region']].head(1).to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='a', header=False)
-                nano_df[['N']].head(1).to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='a', header=False)
-                nano_df.nunique().to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='a', header=False)
+                nano_df[['region']].head(1).to_csv(f'Nunique_nanopolish_indexed_{os.path.basename(file)}.csv', mode='a', header=False)
+                nano_df[['N']].head(1).to_csv(f'Nunique_nanopolish_indexed_{os.path.basename(file)}.csv', mode='a', header=False)
+                nano_df.nunique().to_csv(f'Nunique_nanopolish_indexed_{os.path.basename(file)}.csv', mode='a', header=False)
                 n = n + 1
                 # pd.DataFrame(nano_df.groupby(['file', 'region']).size()).T.to_csv('Size_nanopolish_indexed.csv', mode='a', header=False)
             except Exception as err:
