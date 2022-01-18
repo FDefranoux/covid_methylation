@@ -82,4 +82,4 @@ def main(dir):
 
 
 if __name__ == '__main__':
-    main(file)
+    main(dir)
