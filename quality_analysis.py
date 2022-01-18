@@ -55,11 +55,12 @@ class SamFiles:
 
 
 def main(dir):
-    region_list = [(str(chr), pos, pos+10000000) for chr in range(1, 24) for pos in range(1,250000000, 10000000)]
+    region_list = [(str(chr), pos, pos+1000000) for chr in range(1, 24) for pos in range(1,250000000, 1000000)]
     # nanocols = ['file', 'region', 'chromosome', 'strand', 'start', 'end', 'read_name',
                 # 'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
                 # 'num_calling_strands', 'num_motifs', 'sequence']
     for file in glob.glob(dir):
+        print(file, flush=True)
         # pd.DataFrame(nanocols).T.to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='w', header=False)
         # pd.DataFrame(nanocols).T.to_csv('Size_nanopolish_indexed.csv', mode='w', header=False)
         # Opening the allele_table
@@ -68,9 +69,9 @@ def main(dir):
         for region in region_list:
             try:
                 nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region)
-                nano_df.columns = nanocols
+                # nano_df.columns = nanocols
                 nano_df[['file', 'region', 'N']] = file, str(region), n
-                nano_df[['region']].head(1).to_csv('Nunique_nanopolish_indexed.csv', mode='a', header=False)
+                nano_df[['region']].head(1).to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='a', header=False)
                 nano_df[['N']].head(1).to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='a', header=False)
                 nano_df.nunique().to_csv(f'Nunique_nanopolish_indexed_{file}.csv', mode='a', header=False)
                 n = n + 1
