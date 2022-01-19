@@ -13,6 +13,7 @@ lsb = True
 def lsf_arrray(file_list, function):
     lsb_index = int(os.environ['LSB_JOBINDEX'])-1
     file_array = files[lsb_index]
+    print(lsb_index, )
     return file_array
 
 
@@ -96,4 +97,4 @@ def main(dir, lsb=False):
 
 
 if __name__ == '__main__':
-    main(dir)
+    main(dir, lsb=lsb)
