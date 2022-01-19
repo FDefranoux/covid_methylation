@@ -64,19 +64,18 @@ class SamFiles:
 
 
 def quality_analysis(nanopolish_file, region_list):
-    print(f'BLOUBLOUBLOU {nanopolish_file}')
-    # nano_file = SamFiles.open(file)
-    # for region in region_list:
-    #     nano_df = pd.DataFrame()
-    #     try:
-    #         nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region, cols=nanocols)
-    #         pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].nunique(), columns=[os.path.basename(file)[:-3] + '_' + str(region)]).T.to_csv(f'Nunique_nanopolish_indexed.csv', mode='a', header=False)
-    #     except Exception as err:
-    #         print(f'Error with iterating over file {file}-{region}', flush=True)
-    #         print(err, flush=True)
-    #         print(region, nano_df.shape, flush=True)
-    #         print(nano_df.head(5).to_markdown(), flush=True)
-    #     del nano_df
+    nano_file = SamFiles.open(file)
+    for region in region_list:
+        nano_df = pd.DataFrame()
+        try:
+            nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region, cols=nanocols)
+            pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].nunique(), columns=[os.path.basename(file)[:-3] + '_' + str(region)]).T.to_csv(f'Nunique_nanopolish_indexed.csv', mode='a', header=False)
+        except Exception as err:
+            print(f'Error with iterating over file {file}-{region}', flush=True)
+            print(err, flush=True)
+            print(region, nano_df.shape, flush=True)
+            print(nano_df.head(5).to_markdown(), flush=True)
+        del nano_df
 
 
 def main(dir, lsb=False):
