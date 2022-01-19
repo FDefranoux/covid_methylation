@@ -64,7 +64,7 @@ class SamFiles:
 
 
 def quality_analysis(nanopolish_file, region_list):
-    nano_file = SamFiles.open(file)
+    nano_file = SamFiles.open(nanopolish_file)
     for region in region_list:
         nano_df = pd.DataFrame()
         try:
