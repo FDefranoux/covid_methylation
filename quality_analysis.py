@@ -4,8 +4,17 @@ import os
 import pysam
 import glob
 
+# TODO: descriptive statistics after grepping ??
+# TODO: descriptive statistics number of cpg per samples (boxplot per chr?) in Filtered dataset
+
 dir = 'nanopolish_indexed/*.tsv.gz'
-# file = 'Filtered_nano_bam_files_test.csv'
+lsb = True
+
+def lsf_arrray(file_list, function):
+    lsb_index = int(os.environ['LSB_JOBINDEX'])-1
+    file_array = files[lsb_index]
+    return file_array
+
 
 class SamFiles:
     # def __init__(self):
@@ -54,35 +63,36 @@ class SamFiles:
             # error_files[file] = f'{type} file {file} or its index were not found'
 
 
-def main(dir):
+def quality_analysis(nanopolish_file, region_list):
+    print(f'BLOUBLOUBLOU {nanopolish_file}')
+    # nano_file = SamFiles.open(file)
+    # for region in region_list:
+    #     nano_df = pd.DataFrame()
+    #     try:
+    #         nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region, cols=nanocols)
+    #         pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].nunique(), columns=[os.path.basename(file)[:-3] + '_' + str(region)]).T.to_csv(f'Nunique_nanopolish_indexed.csv', mode='a', header=False)
+    #     except Exception as err:
+    #         print(f'Error with iterating over file {file}-{region}', flush=True)
+    #         print(err, flush=True)
+    #         print(region, nano_df.shape, flush=True)
+    #         print(nano_df.head(5).to_markdown(), flush=True)
+    #     del nano_df
+
+
+def main(dir, lsb=False):
     region_list = [(str(chr), pos, pos+1000000) for chr in range(1, 24) for pos in range(1,250000000, 1000000)]
     nanocols = ['chromosome', 'strand', 'start', 'end', 'read_name',
                 'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
                 'num_calling_strands', 'num_motifs', 'sequence']
-    for file in glob.glob(dir):
+
+    if not lsb:
+        for file in glob.glob(dir):
+            print(file, flush=True)
+            quality_analysis(file, region_list)
+    else:
+        file = lsf_arrray(glob.glob(dir))
         print(file, flush=True)
-        # Opening the allele_table
-        nano_file = SamFiles.open(file)
-        for region in region_list:
-            nano_df = pd.DataFrame()
-            try:
-                nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region, cols=nanocols)
-                pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].nunique(), columns=[os.path.basename(file)[:-3] + '_' + str(region)]).T.to_csv(f'Nunique_nanopolish_indexed.csv', mode='a', header=False)
-            except Exception as err:
-                print(f'Error with iterating over file {file}-{region}', flush=True)
-                print(err, flush=True)
-                print(region, nano_df.shape, flush=True)
-                print(nano_df.head(5).to_markdown(), flush=True)
-            del nano_df
-
-
-    # df = pd.read_csv(file)
-    # os.system('mkdir quality')
-    # for name in df['sample_id'].unique()[0]:
-    #     print(file, flush=True)
-    #     df[df['sample_id'] == name].groupby('chromosome').nunique().to_csv(f'quality_test/Nunique_{name}.csv')
-    #     df[df['sample_id'] == name].groupby('chromosome').size().to_csv(f'quality_test/Size_{name}.csv')
-
+        quality_analysis(file, region_list)
 
 
 if __name__ == '__main__':
