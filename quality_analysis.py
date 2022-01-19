@@ -63,7 +63,7 @@ class SamFiles:
             # error_files[file] = f'{type} file {file} or its index were not found'
 
 
-def quality_analysis(nanopolish_file, region_list):
+def quality_analysis(nanopolish_file, region_list, nanocols):
     nano_file = SamFiles.open(nanopolish_file)
     for region in region_list:
         nano_df = pd.DataFrame()
@@ -87,11 +87,11 @@ def main(dir, lsb=False):
     if not lsb:
         for file in glob.glob(dir):
             print(file, flush=True)
-            quality_analysis(file, region_list)
+            quality_analysis(file, region_list, nanocols)
     else:
         file = lsf_arrray(glob.glob(dir))
         print(file, flush=True)
-        quality_analysis(file, region_list)
+        quality_analysis(file, region_list, nanocols)
 
 
 if __name__ == '__main__':
