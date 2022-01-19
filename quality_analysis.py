@@ -75,7 +75,6 @@ def main(dir):
             del nano_df
 
 
-nano_df = pd.read_table('datafile_test/chr1_bis_PROM1.tsv.gz')
     # df = pd.read_csv(file)
     # os.system('mkdir quality')
     # for name in df['sample_id'].unique()[0]:
