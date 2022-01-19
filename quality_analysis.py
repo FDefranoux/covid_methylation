@@ -67,11 +67,12 @@ def main(dir):
             nano_df = pd.DataFrame()
             try:
                 nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region, cols=nanocols)
-                print(region, nano_df.shape, flush=True)
                 pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].nunique(), columns=[os.path.basename(file)[:-3] + '_' + str(region)]).T.to_csv(f'Nunique_nanopolish_indexed.csv', mode='a', header=False)
             except Exception as err:
-                print(err, flush=True)
                 print(f'Error with iterating over file {file}-{region}', flush=True)
+                print(err, flush=True)
+                print(region, nano_df.shape, flush=True)
+                print(nano_df.head(5).to_markdown(), flush=True)
             del nano_df
 
 
