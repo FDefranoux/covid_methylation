@@ -63,8 +63,8 @@ class SamFiles:
             # error_files[file] = f'{type} file {file} or its index were not found'
 
 
-def quality_analysis(nanopolish_file, region_list, nanocols):
-    nano_file = SamFiles.open(nanopolish_file)
+def quality_analysis(file, region_list, nanocols):
+    nano_file = SamFiles.open(file)
     for region in region_list:
         nano_df = pd.DataFrame()
         try:
