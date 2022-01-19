@@ -69,7 +69,6 @@ def main(dir):
             try:
                 nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region, cols=nanocols)
                 print(region, nano_df.shape, flush=True)
-                nano_df.columns = nanocols
                 pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].nunique(), index=[region]).T.to_csv(f'Nunique_nanopolish_indexed_{os.path.basename(file)}.csv', mode='a', header=False)
                 pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].size(), index=[region]).T.to_csv(f'Size_nanopolish_indexed_{os.path.basename(file)}.csv', mode='a', header=False)
             except Exception as err:
