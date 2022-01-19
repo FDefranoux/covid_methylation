@@ -56,26 +56,26 @@ class SamFiles:
 
 def main(dir):
     region_list = [(str(chr), pos, pos+1000000) for chr in range(1, 24) for pos in range(1,250000000, 1000000)]
-    nanocols = ['file', 'region', 'chromosome', 'strand', 'start', 'end', 'read_name',
+    nanocols = ['chromosome', 'strand', 'start', 'end', 'read_name',
                 'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
                 'num_calling_strands', 'num_motifs', 'sequence']
     for file in glob.glob(dir):
         print(file, flush=True)
         # Opening the allele_table
         nano_file = SamFiles.open(file)
-        n = 0
         for region in region_list:
             nano_df = pd.DataFrame()
             try:
                 nano_df = SamFiles.sam_iterators(SamFiles.region(nano_file), region, cols=nanocols)
                 print(region, nano_df.shape, flush=True)
-                pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].nunique(), index=[region]).T.to_csv(f'Nunique_nanopolish_indexed_{os.path.basename(file)}.csv', mode='a', header=False)
-                pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].size(), index=[region]).T.to_csv(f'Size_nanopolish_indexed_{os.path.basename(file)}.csv', mode='a', header=False)
+                pd.DataFrame(nano_df[['strand', 'start', 'end', 'read_name']].nunique(), columns=[os.path.basename(file)[:-3] + '_' + str(region)]).T.to_csv(f'Nunique_nanopolish_indexed.csv', mode='a', header=False)
             except Exception as err:
                 print(err, flush=True)
                 print(f'Error with iterating over file {file}-{region}', flush=True)
             del nano_df
 
+
+nano_df = pd.read_table('datafile_test/chr1_bis_PROM1.tsv.gz')
     # df = pd.read_csv(file)
     # os.system('mkdir quality')
     # for name in df['sample_id'].unique()[0]:
