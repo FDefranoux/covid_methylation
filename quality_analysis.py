@@ -1,13 +1,14 @@
 import pandas as pd
-import seaborn as sns
 import os
 import pysam
 import glob
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # TODO: descriptive statistics after grepping ??
 # TODO: descriptive statistics number of cpg per samples (boxplot per chr?) in Filtered dataset
 
-dir = 'nanopolish_indexed/*.tsv.gz'
+dir = 'lsf_out.txt'
 lsb = True
 
 def lsf_arrray(file_list):
@@ -84,15 +85,60 @@ def main(dir, lsb=False):
                 'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
                 'num_calling_strands', 'num_motifs', 'sequence']
 
+    if os.path.isdir(dir):
+        ls_files = os.listdir(dir)
+    elif '*' in dir:
+        ls_files = glob.glob(dir)
+    else:
+        with open(dir, 'r') as f:
+            ls_files = f.readlines()
+        ls_files = [file_str[:-1] for file_str in ls_files]
+
+    assert isinstance(ls_files, list), 'List of files is not of the right type !'
+
     if not lsb:
-        for file in glob.glob(dir):
+        for file in ls_files:
             print(file, flush=True)
             quality_analysis(file, region_list, nanocols)
     else:
-        file = lsf_arrray(glob.glob(dir))
+        file = lsf_arrray(ls_files)
         print(file, flush=True)
         quality_analysis(file, region_list, nanocols)
 
 
 if __name__ == '__main__':
     main(dir, lsb=lsb)
+
+
+# ## Analysis part
+# error_df = pd.read_table('Errors_quality_file.txt', sep=':', header=None )
+# error_df['index'] = error_df[0].str.split('-', expand=True)[0]
+# dict_df = error_df.dropna().copy()
+# dict_df[[0, 1]] = dict_df[1].str.split('-', expand=True)
+# dict_df[0] = dict_df[0].str[31:]
+# dict_index = dict_df.set_index('index')[0].to_dict()
+# dict_region = dict_df[1].to_dict()
+# len(dict_index)
+# blou = error_df.drop(error_df.dropna().index).dropna(axis=1, how='all').copy()
+# blou.drop(blou[blou[0] == '--'].index, inplace=True)
+# blou[0] = blou[0].str.split('-', n=1, expand=True)[1]
+# blou['index'].replace(dict_index, inplace=True)
+# blou.groupby('index').nunique().sort_values(by=0)
+# blou[0].value_counts()
+#
+#
+#
+# quality_df = pd.read_csv('Nunique_nanopolish_indexed_all.csv').reset_index()
+# quality_df.columns = ['region', 'strand', 'start', 'end', 'read_name']
+# quality_df[['file', 'region']] = quality_df['region'].str.rsplit('_', n=1, expand=True)
+# quality_df['file'] = quality_df['file'].str[:-4]
+# quality_df['chr'] = quality_df['region'].str.split(',', expand=True)[0].str[2:-1].astype(int)
+# sns.catplot(data=quality_df[quality_df['chr'] == 1], x='region', y='read_name', row='chr', hue='file')
+#
+#
+# row_to_drop = quality_df[(quality_df['strand'] == 0)].index.tolist()
+#
+# # Rows without 2strands
+# row_to_drop += blou[blou['strand'] != 2]  # TO DROP ???
+#
+# blou.groupby(['file']).nunique()['chr'].value_counts().sort_index()
