@@ -22,7 +22,7 @@ def grep_target_readnames(file, list_readnames, nanopolish_input, output='', con
         f.writelines('\n'.join(list_readnames))
         f.writelines(['\n'])
     nano_file = os.path.join(nanopolish_input, file + '.tsv.gz')
-    os.system(f'zcat {nano_file} | head -n 1 > {os.path.join(output, file + '.txt')}')
+    os.system(f'zcat {nano_file} | head -n 1 > {os.path.join(output, file)}.txt')
     os.system(f'zcat {nano_file} | grep -f {os.path.join(output, file + "_readnames.temp")} >> {os.path.join(output, file + ".txt")}')
     if control:
         os.system(f'grep -f -v {os.path.join(output, file + "_readnames.temp")} {os.path.join(output, file + ".txt")} > {os.path.join(output, file + "_notrecognized_readnames.txt")}')
