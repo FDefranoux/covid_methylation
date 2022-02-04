@@ -173,7 +173,7 @@ def main(dir, nanopolish_input, title='', file_snps='', lsb=False):
     os.system(f'mkdir nanopolish_greped{title}')
     if not lsb:
         for base_file in glob.glob(dir):
-            print(file, flush=True)
+            print(base_file, flush=True)
             try:
                 merge = merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp, nano_cols, title, list_snp)
                 if base_file in glob.glob(dir)[0]:
@@ -183,17 +183,17 @@ def main(dir, nanopolish_input, title='', file_snps='', lsb=False):
                     merge.to_csv(f'Filtered_nano_bam_files{title}.csv', mode='a',
                                  header=False, index=False)
             except:
-                print(file, 'ERROR', flush=True)
+                print(base_file, 'ERROR', flush=True)
     else:
         base_file = lsf_arrray(glob.glob(dir))
-        print(file, flush=True)
+        print(base_file, flush=True)
         merge = merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp, nano_cols, nanopolish_input, title, list_snp)
-        merge.to_csv(f'Filtered_nano_bam_files{title}_{os.path.basename(file)[:-4]}.csv', mode='w',
+        merge.to_csv(f'Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv', mode='w',
                      header=True, index=False)
         print('\n\n------------------------')
         print('To gather the files run:')
         print('------------------------\n\n')
-        print(f'head -n1 Filtered_nano_bam_files{title}_{os.path.basename(file)[:-4]}.csv > Filtered_nano_bam_files{title}.csv')
+        print(f'head -n1 Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv > Filtered_nano_bam_files{title}.csv')
         print(f'cat Filtered_nano_bam_files{title}_* >> Filtered_nano_bam_files{title}.csv')
 
 if __name__ == '__main__':
