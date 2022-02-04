@@ -18,7 +18,7 @@ def lsf_arrray(file_list):
 
 
 def grep_target_readnames(file, list_readnames, nanopolish_input, output='', control=True):
-    with open(f'{os.path.join(output, file + '_readnames.temp')}', 'w') as f:
+    with open(f'{os.path.join(output, file + "_readnames.temp")}', 'w') as f:
         f.writelines('\n'.join(list_readnames))
         f.writelines(['\n'])
     nano_file = os.path.join(nanopolish_input, file + '.tsv.gz')
