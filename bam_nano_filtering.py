@@ -3,18 +3,30 @@ import os
 import glob
 
 # pd.options.display.max_rows = 2
+# TODO: TEST LSF JOB indexing possibility !
+# TODO: For each analysis, print the parameters used ! Report the logs ? The filtering steps ?
 
-dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/*'
+nanopolish_input = '/hps/nobackup/birney/projects/gel_methylation/nanopolish'
+dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc00850*'
 title = '_control_finemapped'
+lsb = True
 
-def grep_target_readnames(file, list_readnames, output='nanopolish_greped'):
-    with open(f'{file}_readnames.temp', 'w') as f:
+def lsf_arrray(file_list):
+    lsb_index = int(os.environ['LSB_JOBINDEX'])-1
+    file_array = file_list[lsb_index]
+    return file_array
+
+
+def grep_target_readnames(file, list_readnames, nanopolish_input, output='', control=True):
+    with open(f'{os.path.join(output, file + '_readnames.temp')}', 'w') as f:
         f.writelines('\n'.join(list_readnames))
         f.writelines(['\n'])
-    nano_file = os.path.join('nanopolish_indexed', file + '.tsv.gz')
-    os.system(f'zcat {nano_file} | head -n 1 > {output}/{file}.txt')
-    os.system(f'zcat {nano_file} | grep -f {file}_readnames.temp >> {output}/{file}.txt')
-    os.remove(f'{file}_readnames.temp')
+    nano_file = os.path.join(nanopolish_input, file + '.tsv.gz')
+    os.system(f'zcat {nano_file} | head -n 1 > {os.path.join(output, file + '.txt')}')
+    os.system(f'zcat {nano_file} | grep -f {os.path.join(output, file + '_readnames.temp')} >> {os.path.join(output, file + '.txt')}')
+    if control:
+        os.system(f'grep -f -v {os.path.join(output, file + '_readnames.temp')} {os.path.join(output, file + '.txt')} > {os.path.join(output, file + '_notrecognized_readnames.txt')}')
+    # os.remove(f'{os.path.join(output, file + '_readnames.temp')}')
 
 
 def genotype_frombasecalling(df, t=0.90, print_counts=False):
@@ -59,6 +71,19 @@ def genotype_frombasecalling(df, t=0.90, print_counts=False):
     return df
 
 
+def select_SNP_per_pvalue(file, pval_col, dist_bp=500000):
+    snp_df = pd.read_table(file, usecols=['#CHR', 'POS', 'SNP', pval_col])
+    best_snp = []
+    for chr in snp_df['#CHR'].unique():
+        chr_df = snp_df[snp_df['#CHR'] == chr]
+        while chr_df.shape[0] > 0:
+            best_pval = chr_df[pval_col].min()
+            best_snp += chr_df[chr_df[pval_col] == best_pval]['SNP'].unique().tolist()
+            pos = chr_df[chr_df[pval_col] == best_pval]['POS'].unique().tolist()[-1]
+            chr_df = chr_df[(chr_df['POS'] <  pos - dist_bp) | (chr_df['POS'] >  pos + dist_bp) ]
+    return best_snp
+
+
 def filtering_datas(df, list_snp=[]):
     log = {}
     log['initial shape'] = str(df.shape)
@@ -82,6 +107,10 @@ def filtering_datas(df, list_snp=[]):
     shape_diff = new_df.shape[0]
 
     # Filtering for specific SNPs
+    if fine_mapping:
+        # TODO: Add kwargs to modify the finemapping
+        list_snp = select_SNP_per_pvalue(file_snp, pval_col='all_inv_var_meta_p', dist_bp=500000)
+
     if list_snp:
         new_df = new_df[new_df['covid_snp'].isin(list_snp)]
         log['snp_filtering'] = int(shape_diff - new_df.shape[0])
@@ -99,7 +128,37 @@ def nanopolish_formatting(nano):
         nano['pos'].astype(int) - nano['start'].astype(int))
 
 
-def main(dir, title=''):
+def merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp, nano_cols, nanopolish_input, list_snp=[], title=''):
+    base_df = pd.read_table(base_file, header=None, names=colnames_basefile)
+    base_df[['chromosome', 'pos', 'ref', 'alt']] = base_df[target_snp].str.split(':', expand=True)
+    list_readnames = list(base_df['read_name'].unique())
+    base_file = os.path.basename(base_file).split('.')[0]
+    print(base_file, flush=True)
+    grep_target_readnames(base_file, list_readnames, nanopolish_input=nanopolish_input,
+        output=f'nanopolish_greped{title}', control=True)
+    base_df = genotype_frombasecalling(base_df, t=0.90, print_counts=False)
+    base_df, log = filtering_datas(base_df, list_snp=list_snp)
+    print(log)
+    base_df = base_df.astype(object)
+
+    nano = pd.read_table(f'nanopolish_greped{title}/{base_file}.txt', header=None, names=nano_cols)
+    nano['sample_id'] = base_file
+    nano['chromosome'] = nano['chromosome'].astype(str)
+    nano = nano.astype(object)
+    merge = pd.merge(nano, base_df, on=['chromosome', 'read_name', 'sample_id'], copy=False)
+    #TODO: verification of the merge results
+    if base_df.shape[0] != merge.shape[0]:
+        print('\n\n Shapes after merging',
+              f'Base calling file: {base_df.shape}',
+              f'nanopolish file: {nano.shape}',
+              f'merged file: {merge.shape}', flush=True)
+    del nano, base_df
+
+    nanopolish_formatting(merge)
+    return merge
+
+
+def main(dir, nanopolish_input, title='', file_snps=''):
     # colnames_basefile = ['sample_id', 'covid_snp', 'read_name', 'base_called']
     # snp = 'covid_snp'
     colnames_basefile = ['sample_id', 'control_snp', 'covid_snp', 'control_snp_rs', 'covid_snp_rs', 'read_name', 'base_called']
@@ -107,44 +166,35 @@ def main(dir, title=''):
     nano_cols = ['chromosome', 'strand', 'start', 'end', 'read_name',
                      'log_lik_ratio', 'log_lik_methylated', 'log_lik_unmethylated',
                      'num_calling_strands', 'num_motifs', 'sequence']
-    os.system(f'mkdir nanopolish_greped')
-
-    for file in glob.glob(dir)[64:]:
-        try:
-            base_file = pd.read_table(file, header=None, names=colnames_basefile)
-            base_file[['chromosome', 'pos', 'ref', 'alt']] = base_file[target_snp].str.split(':', expand=True)
-            list_readnames = list(base_file['read_name'].unique())
-            file = os.path.basename(file).split('.')[0]
+    if file_snps:
+        list_snp = pd.read_table(file_snps, header=None)[0].to_list()
+    else:
+        list_snps=[]
+    os.system(f'mkdir nanopolish_greped{title}')
+    if not lsb:
+        for base_file in glob.glob(dir):
             print(file, flush=True)
-            grep_target_readnames(file, list_readnames)
-            base_file = genotype_frombasecalling(base_file, t=0.90, print_counts=False)
-            finemapped_snp = pd.read_table('finemapped', header=None)[0].to_list()
-            base_file, log = filtering_datas(base_file, list_snp=finemapped_snp)
-            # TODO: Print something with the logs ?
-            base_file = base_file.astype(object)
-
-            nano = pd.read_table(f'nanopolish_greped/{file}.txt', header=None, names=nano_cols)
-            nano['sample_id'] = file
-            nano['chromosome'] = nano['chromosome'].astype(str)
-            nano = nano.astype(object)
-            merge = pd.merge(nano, base_file, on=['chromosome', 'read_name', 'sample_id'], copy=False)
-            if base_file.shape[0] != merge.shape[0]:
-                print('\n\n Shapes after merging',
-                      f'Base calling file: {base_file.shape}',
-                      f'nanopolish file: {nano.shape}',
-                      f'merged file: {merge.shape}', flush=True)
-            del nano, base_file
-
-            nanopolish_formatting(merge)
-
-            if file in glob.glob(dir)[0]:
-                merge.to_csv(f'Filtered_nano_bam_files{title}.csv', mode='w',
-                             header=True, index=False)
-            else:
-                merge.to_csv(f'Filtered_nano_bam_files{title}.csv', mode='a',
-                             header=False, index=False)
-        except:
-            print(file, 'ERROR', flush=True)
+            try:
+                merge = merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp, nano_cols, title, list_snp)
+                if base_file in glob.glob(dir)[0]:
+                    merge.to_csv(f'Filtered_nano_bam_files{title}.csv', mode='w',
+                                 header=True, index=False)
+                else:
+                    merge.to_csv(f'Filtered_nano_bam_files{title}.csv', mode='a',
+                                 header=False, index=False)
+            except:
+                print(file, 'ERROR', flush=True)
+    else:
+        base_file = lsf_arrray(glob.glob(dir))
+        print(file, flush=True)
+        merge = merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp, nano_cols, nanopolish_input, title, list_snp)
+        merge.to_csv(f'Filtered_nano_bam_files{title}_{os.path.basename(file)[:-4]}.csv', mode='w',
+                     header=True, index=False)
+        print('\n\n------------------------')
+        print('To gather the files run:')
+        print('------------------------\n\n')
+        print(f'head -n1 Filtered_nano_bam_files{title}_{os.path.basename(file)[:-4]}.csv > Filtered_nano_bam_files{title}.csv')
+        print(f'cat Filtered_nano_bam_files{title}_* >> Filtered_nano_bam_files{title}.csv')
 
 if __name__ == '__main__':
-    main(dir, title=title)
+    main(dir=dir, title=title, file_snps='finemapped', lsb=lsb, nanopolish_input=nanopolish_input)
