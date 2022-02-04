@@ -158,7 +158,7 @@ def merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp, nano_c
     return merge
 
 
-def main(dir, nanopolish_input, title='', file_snps=''):
+def main(dir, nanopolish_input, title='', file_snps='', lsb=False):
     # colnames_basefile = ['sample_id', 'covid_snp', 'read_name', 'base_called']
     # snp = 'covid_snp'
     colnames_basefile = ['sample_id', 'control_snp', 'covid_snp', 'control_snp_rs', 'covid_snp_rs', 'read_name', 'base_called']
