@@ -7,7 +7,7 @@ import glob
 # TODO: For each analysis, print the parameters used ! Report the logs ? The filtering steps ?
 
 nanopolish_input = '/hps/nobackup/birney/projects/gel_methylation/nanopolish'
-dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc00850*'
+dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc0085*'
 title = '_control_finemapped'
 lsb = True
 
