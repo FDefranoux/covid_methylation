@@ -84,7 +84,7 @@ def select_SNP_per_pvalue(file, pval_col, dist_bp=500000):
     return best_snp
 
 
-def filtering_datas(df, list_snp=[]):
+def filtering_datas(df, list_snp=[], fine_mapping=True):
     log = {}
     log['initial shape'] = str(df.shape)
 
