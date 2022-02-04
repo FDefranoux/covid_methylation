@@ -188,7 +188,7 @@ def main(dir, nanopolish_input, title='', file_snps='', lsb=False):
     else:
         base_file = lsf_arrray(glob.glob(dir))
         print(base_file, flush=True)
-        merge = merge_basefile_and_nanofile((base_file, colnames_basefile,
+        merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
             target_snp, nano_cols, nanopolish_input, list_snp, title)
         merge.to_csv(f'Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv', mode='w',
                      header=True, index=False)
