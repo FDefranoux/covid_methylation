@@ -214,11 +214,16 @@ def main(dir, nanopolish_input, title='', file_snps='', lsb=False, fine_mapping=
         # LSF job array management
         base_file = lsf_arrray(glob.glob(dir))
         print(base_file, flush=True)
-        merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
-                                            target_snp, nanopolish_input, list_snp, title, fine_mapping=fine_mapping)
-        # Saving
-        merge.to_csv(f'Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv', mode='w',
-                     header=True, index=False)
+        try:
+            merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
+                                                target_snp, nanopolish_input, list_snp, title, fine_mapping=fine_mapping)
+            # Saving
+            merge.to_csv(f'Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv', mode='w',
+                         header=True, index=False)
+        except Exception as err:
+            print(base_file, 'ERROR', err, flush=True)
+
+        # Ending message
         print('\n\n------------------------\nTo gather the files run:')
         print('------------------------\n')
         print(
