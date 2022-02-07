@@ -6,11 +6,12 @@ import glob
 # TODO: TEST LSF JOB indexing possibility !
 # TODO: For each analysis, print the parameters used ! Report the logs ? The filtering steps ?
 
+dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc*'
 nanopolish_input = '/hps/nobackup/birney/projects/gel_methylation/nanopolish'
-dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc0085*'
 title = '_control_finemapped'
+file_snps = 'finemapped'
 lsb = True
-# finae_mapping = ''
+# fine_mapping = ''
 
 
 def lsf_arrray(file_list):
@@ -30,8 +31,8 @@ def grep_target_readnames(file, list_readnames, nanopolish_input, output='', con
         f'zcat {nano_file} | grep -f {os.path.join(output, file + "_readnames.temp")} >> {os.path.join(output, file + ".txt")}')
     if control:
         os.system(
-            f'grep -f -v {os.path.join(output, file + "_readnames.temp")} {os.path.join(output, file + ".txt")} > {os.path.join(output, file + "_notrecognized_readnames.txt")}')
-    # os.remove(f'{os.path.join(output, file + '_readnames.temp')}')
+            f'grep -v -f {os.path.join(output, file + "_readnames.temp")} {os.path.join(output, file + ".txt")} > {os.path.join(output, file + "_notrecognized_readnames.txt")}')
+    os.remove(f'{os.path.join(output, file + "_readnames.temp")}')
 
 
 def genotype_frombasecalling(df, t=0.90, print_counts=False):
@@ -219,13 +220,13 @@ def main(dir, nanopolish_input, title='', file_snps='', lsb=False, fine_mapping=
         merge.to_csv(f'Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv', mode='w',
                      header=True, index=False)
         print('\n\n------------------------\nTo gather the files run:')
-        print('------------------------\n\n')
+        print('------------------------\n')
         print(
             f'head -n1 Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv > Filtered_nano_bam_files{title}.csv')
         print(
-            f'cat Filtered_nano_bam_files{title}_* >> Filtered_nano_bam_files{title}.csv')
+            f'\ncat Filtered_nano_bam_files{title}_* >> Filtered_nano_bam_files{title}.csv')
 
 
 if __name__ == '__main__':
-    main(dir=dir, title=title, file_snps='finemapped', lsb=lsb,
+    main(dir=dir, title=title, file_snps=file_snps, lsb=lsb,
          nanopolish_input=nanopolish_input, fine_mapping=False)
