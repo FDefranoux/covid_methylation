@@ -10,6 +10,7 @@ nanopolish_input = '/hps/nobackup/birney/projects/gel_methylation/nanopolish'
 dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc0085*'
 title = '_control_finemapped'
 lsb = True
+# finae_mapping = ''
 
 
 def lsf_arrray(file_list):
@@ -183,7 +184,7 @@ def merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp,
     return merge
 
 
-def main(dir, nanopolish_input, title='', file_snps='', lsb=False, fine_mapping=True):
+def main(dir, nanopolish_input, title='', file_snps='', lsb=False, fine_mapping=False):
     # colnames_basefile = ['sample_id', 'covid_snp', 'read_name', 'base_called']
     # snp = 'covid_snp'
     colnames_basefile = ['sample_id', 'control_snp', 'covid_snp',
@@ -199,7 +200,7 @@ def main(dir, nanopolish_input, title='', file_snps='', lsb=False, fine_mapping=
             print(base_file, flush=True)
             try:
                 merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
-                                                    target_snp, nanopolish_input, list_snp, title)
+                                                    target_snp, nanopolish_input, list_snp, title, fine_mapping=False)
                 if base_file in glob.glob(dir)[0]:
                     merge.to_csv(f'Filtered_nano_bam_files{title}.csv', mode='w',
                                  header=True, index=False)
@@ -227,4 +228,4 @@ def main(dir, nanopolish_input, title='', file_snps='', lsb=False, fine_mapping=
 
 if __name__ == '__main__':
     main(dir=dir, title=title, file_snps='finemapped', lsb=lsb,
-         nanopolish_input=nanopolish_input, fine_mapping=True)
+         nanopolish_input=nanopolish_input, fine_mapping=False)
