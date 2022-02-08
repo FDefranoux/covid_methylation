@@ -5,8 +5,8 @@ import glob
 # pd.options.display.max_rows = 2
 # TODO: For each analysis, print the parameters used ! Report the logs ? The filtering steps ?
 # TODO: add arg parser + file to log the entries and analyses
-# dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc*'
-dir = 'example.txt'
+dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc*'
+# dir = 'example.txt'
 nanopolish_input = '/hps/nobackup/birney/projects/gel_methylation/nanopolish'
 title = '_grep_step_control'
 file_snps = 'finemapped'
