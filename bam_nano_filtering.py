@@ -3,14 +3,15 @@ import os
 import glob
 
 # pd.options.display.max_rows = 2
-# TODO: TEST LSF JOB indexing possibility !
 # TODO: For each analysis, print the parameters used ! Report the logs ? The filtering steps ?
 
-dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc*'
+# dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc*'
+dir = 'redo_lsf.txt'
 nanopolish_input = '/hps/nobackup/birney/projects/gel_methylation/nanopolish'
 title = '_control_finemapped'
 file_snps = 'finemapped'
 lsb = True
+target_snp = 'control_snp'
 # fine_mapping = ''
 
 
@@ -185,24 +186,33 @@ def merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp,
     return merge
 
 
-def main(dir, nanopolish_input, title='', file_snps='', lsb=False, fine_mapping=False):
+def main(dir, nanopolish_input, target_snp, file_snps='', lsb=False, fine_mapping=False, title=''):
+    # TODO: Check wheter if the basefile for covid and control snp could be the same or associated ...
+    # if target_snp = 'covid_snp'
     # colnames_basefile = ['sample_id', 'covid_snp', 'read_name', 'base_called']
-    # snp = 'covid_snp'
+    if os.path.isdir(dir):
+        list_files = glob.glob(dir)
+    else:
+        try:
+            list_files = pd.read_table(dir, header=None)[0].tolist()
+        except Exception as err:
+            print('Could not read input dir or file list\n', err)
+
     colnames_basefile = ['sample_id', 'control_snp', 'covid_snp',
                          'control_snp_rs', 'covid_snp_rs', 'read_name', 'base_called']
-    target_snp = 'control_snp'
+
     if file_snps:
         list_snp = pd.read_table(file_snps, header=None)[0].to_list()
     else:
         list_snp = []
     os.system(f'mkdir nanopolish_greped{title}')
     if not lsb:
-        for base_file in glob.glob(dir):
+        for base_file in list_files:
             print(base_file, flush=True)
             try:
                 merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
                                                     target_snp, nanopolish_input, list_snp, title, fine_mapping=False)
-                if base_file in glob.glob(dir)[0]:
+                if base_file in list_files[0]:
                     merge.to_csv(f'Filtered_nano_bam_files{title}.csv', mode='w',
                                  header=True, index=False)
                 else:
@@ -212,7 +222,7 @@ def main(dir, nanopolish_input, title='', file_snps='', lsb=False, fine_mapping=
                 print(base_file, 'ERROR', err, flush=True)
     else:
         # LSF job array management
-        base_file = lsf_arrray(glob.glob(dir))
+        base_file = lsf_arrray(list_files)
         print(base_file, flush=True)
         try:
             merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
@@ -233,5 +243,5 @@ def main(dir, nanopolish_input, title='', file_snps='', lsb=False, fine_mapping=
 
 
 if __name__ == '__main__':
-    main(dir=dir, title=title, file_snps=file_snps, lsb=lsb,
-         nanopolish_input=nanopolish_input, fine_mapping=False)
+    main(dir=dir, nanopolish_input=nanopolish_input, target_snp = target_snp,
+         file_snps=file_snps, lsb=lsb, fine_mapping=False)
