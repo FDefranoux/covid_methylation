@@ -55,7 +55,7 @@ def main(dir, nanopolish_input, target_snp, file_snps='', lsb=False, fine_mappin
     # TODO: Check wheter if the basefile for covid and control snp could be the same or associated ...
     # if target_snp = 'covid_snp'
     # colnames_basefile = ['sample_id', 'covid_snp', 'read_name', 'base_called']
-    if os.path.isdir(dir):
+    if (os.path.isdir(dir)) or ('*' in dir):
         list_files = glob.glob(dir)
     else:
         try:
