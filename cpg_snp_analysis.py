@@ -87,7 +87,7 @@ def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/0', '0/1', 
 
 
 # MAIN
-def main(file, dir_out='FROZEN_Nov2021_cpg_snp_analysis/special_plots', unit='cpg'):
+def main(file, dir_out='', unit='cpg'):
 
     # TODO: Automation of the path management (in, out, frozen etc)
     # TODO: Include title in the MAIN
@@ -103,17 +103,15 @@ def main(file, dir_out='FROZEN_Nov2021_cpg_snp_analysis/special_plots', unit='cp
     # TODO: check if we still need filtering at this point
     snp_ls = pd.read_table('finemapped', header=None)[0].to_list()
     gen_ls = ['0/0', '0/1', '1/1']
-    print('Number of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(gen_ls) == False].shape[0])
-    print('Number of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0])
-    print('Number of duplicated lines: ', all_df[all_df.duplicated(keep=False)].shape[0])
+    print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(gen_ls) == False].shape[0], flush=True)
+    print('\nNumber of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0], flush=True)
+    print('\nNumber of duplicated lines: ', all_df[all_df.duplicated(keep=False)].shape[0], flush=True)
     all_df = all_df[all_df.duplicated() == False]
     all_df['log_lik_ratio'] = all_df['log_lik_ratio'].astype(float)
-    all_df.head(2)
-
 
     # QUESTION: Where should we do the outliers detection ?
     stat_raw = Stats(all_df[['log_lik_ratio']])
-    print(stat_raw.outliers.shape[0]/all_df[['log_lik_ratio']].shape[0])
+    print('\nOutliers:', stat_raw.outliers.shape[0]/all_df[['log_lik_ratio']].shape[0], flush=True)
     all_df = all_df.loc[stat_raw.no_outliers.index]
 
     # Median over the read_name with same Allele calling
