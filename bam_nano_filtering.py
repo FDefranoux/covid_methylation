@@ -4,7 +4,7 @@ import glob
 
 # pd.options.display.max_rows = 2
 # TODO: For each analysis, print the parameters used ! Report the logs ? The filtering steps ?
-
+# TODO: add arg parser + file to log the entries and analyses
 # dir = '/hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc*'
 dir = 'redo_lsf.txt'
 nanopolish_input = '/hps/nobackup/birney/projects/gel_methylation/nanopolish'
@@ -12,7 +12,7 @@ title = '_control_finemapped'
 file_snps = 'finemapped'
 lsb = True
 target_snp = 'control_snp'
-# fine_mapping = ''
+# fine_mapping = 'significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
 
 
 def lsf_arrray(file_list):
@@ -27,12 +27,13 @@ def grep_target_readnames(file, list_readnames, nanopolish_input, output='', con
         f.writelines(['\n'])
     nano_file = os.path.join(nanopolish_input, file + '.tsv.gz')
     os.system(
-        f'zcat {nano_file} | head -n 1 > {os.path.join(output, file)}.txt')
+        f'zcat {nano_file} | head -n 1 > {os.path.join(output, file)}_greped.txt')
     os.system(
-        f'zcat {nano_file} | grep -f {os.path.join(output, file + "_readnames.temp")} >> {os.path.join(output, file + ".txt")}')
+        f'zcat {nano_file} | grep -f {os.path.join(output, file + "_readnames.temp")} >> {os.path.join(output, file + "_greped.txt")}')
     if control:
+        # TODO: Call or redo Tom's script to count the readnames per chromosome instead of total
         os.system(
-            f'grep -v -f {os.path.join(output, file + "_readnames.temp")} {os.path.join(output, file + ".txt")} > {os.path.join(output, file + "_notrecognized_readnames.txt")}')
+            f'grep -v -f {os.path.join(output, file + "_readnames.temp")} {os.path.join(output, file + "_greped.txt")} > {os.path.join(output, file + "_notrecognized_readnames.txt")}')
     os.remove(f'{os.path.join(output, file + "_readnames.temp")}')
 
 
@@ -190,7 +191,7 @@ def main(dir, nanopolish_input, target_snp, file_snps='', lsb=False, fine_mappin
     # TODO: Check wheter if the basefile for covid and control snp could be the same or associated ...
     # if target_snp = 'covid_snp'
     # colnames_basefile = ['sample_id', 'covid_snp', 'read_name', 'base_called']
-    if os.path.isdir(dir):
+    if (os.path.isdir(dir)) or ('*' in dir):
         list_files = glob.glob(dir)
     else:
         try:
@@ -213,10 +214,10 @@ def main(dir, nanopolish_input, target_snp, file_snps='', lsb=False, fine_mappin
                 merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
                                                     target_snp, nanopolish_input, list_snp, title, fine_mapping=False)
                 if base_file in list_files[0]:
-                    merge.to_csv(f'Filtered_nano_bam_files{title}.csv', mode='w',
+                    merge.to_csv(f'nanopolish_greped{title}/Filtered_nano_bam_files{title}.csv', mode='w',
                                  header=True, index=False)
                 else:
-                    merge.to_csv(f'Filtered_nano_bam_files{title}.csv', mode='a',
+                    merge.to_csv(f'nanopolish_greped{title}/Filtered_nano_bam_files{title}.csv', mode='a',
                                  header=False, index=False)
             except Exception as err:
                 print(base_file, 'ERROR', err, flush=True)
@@ -228,20 +229,22 @@ def main(dir, nanopolish_input, target_snp, file_snps='', lsb=False, fine_mappin
             merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
                                                 target_snp, nanopolish_input, list_snp, title, fine_mapping=fine_mapping)
             # Saving
-            merge.to_csv(f'Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv', mode='w',
+            merge.to_csv(f'nanopolish_greped{title}/Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv', mode='w',
                          header=True, index=False)
         except Exception as err:
             print(base_file, 'ERROR', err, flush=True)
 
         # Ending message
+        # TODO: Create small bash script to be called to perform those after completion of job array
         print('\n\n------------------------\nTo gather the files run:')
         print('------------------------\n')
         print(
-            f'head -n1 Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv > Filtered_nano_bam_files{title}.csv')
+            f'head -n1 nanopolish_greped{title}/Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv > nanopolish_greped{title}/Filtered_nano_bam_files{title}.csv')
+        print(f'\ntail -n+2 -q Filtered_nano_bam_files{title}_* >> Filtered_nano_bam_files{title}.csv')
         print(
-            f'\ncat Filtered_nano_bam_files{title}_* >> Filtered_nano_bam_files{title}.csv')
+            f'\nrm -f nanopolish_greped{title}/Filtered_nano_bam_files{title}_*')
 
-
+# TODO remove duplicated lines if any
 if __name__ == '__main__':
-    main(dir=dir, nanopolish_input=nanopolish_input, target_snp = target_snp,
+    main(dir=dir, nanopolish_input=nanopolish_input, target_snp=target_snp,
          file_snps=file_snps, lsb=lsb, fine_mapping=False)
