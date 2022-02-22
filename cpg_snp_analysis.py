@@ -96,16 +96,17 @@ def main(file, unit, dir_out=''):
     #     os.makedirs(dir_out)
 
     # Opening file
-    all_df = pd.read_csv(file)
+    all_df = pd.read_csv(file, dtype='object')
     # TODO ERASE:
-    all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all').drop(2194339)
+    all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
 
     # TODO: check if we still need filtering at this point
-    snp_ls = pd.read_table('finemapped', header=None)[0].to_list()
+    snp_ls = pd.read_table('base_called_from_bam_files/finemapped_controls_bases_at_snps_10012022.txt', header=None, names=['sample_id', 'covid_snp', 'read_name', 'base_called'])[unit].unique()
     gen_ls = ['0/0', '0/1', '1/1']
     print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(gen_ls) == False].shape[0], flush=True)
     print('\nNumber of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0], flush=True)
     print('\nNumber of duplicated lines: ', all_df[all_df.duplicated(keep=False)].shape[0], flush=True)
+    del snp_ls, gen_ls
     all_df = all_df[all_df.duplicated() == False]
     all_df['log_lik_ratio'] = all_df['log_lik_ratio'].astype(float)
 
