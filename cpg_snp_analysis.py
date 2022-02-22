@@ -118,6 +118,7 @@ def main(file, unit, dir_out=''):
     # QUESTION: Before doing the median, should we delete the cpgs/snps with not enough counts for one file ?
     median_df = all_df.groupby(['phenotype', 'sample_id', 'chromosome', 'cpg',
                                 unit, 'Genotype', 'haplotype']).median().reset_index()
+    del all_df
     median_df = median_df.sort_values(by=['haplotype'], ascending=False)
     median_df = median_df.sort_values(by=['chromosome', unit, 'Genotype', 'phenotype'])
 
@@ -125,9 +126,7 @@ def main(file, unit, dir_out=''):
     snp_counts = median_df.groupby([unit, 'Genotype']).size().unstack()
     cpg_counts = median_df.groupby(['cpg', unit, 'Genotype']).size().unstack()
     cpg_counts_10 = cpg_counts[cpg_counts > 10].dropna(how= 'all').index.levels[0]
-    # Loop_stats(median_df)
-
-
+    Loop_stats(median_df)
 
 
 if __name__ == '__main__':
