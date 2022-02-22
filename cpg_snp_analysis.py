@@ -87,13 +87,13 @@ def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/0', '0/1', 
 
 
 # MAIN
-def main(file, dir_out='', unit='cpg'):
+def main(file, unit, dir_out=''):
 
     # TODO: Automation of the path management (in, out, frozen etc)
     # TODO: Include title in the MAIN
     # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
-    if not os.path.exists(dir_out):
-        os.makedirs(dir_out)
+    # if not os.path.exists(dir_out):
+    #     os.makedirs(dir_out)
 
     # Opening file
     all_df = pd.read_csv(file)
@@ -125,45 +125,17 @@ def main(file, dir_out='', unit='cpg'):
     snp_counts = median_df.groupby([unit, 'Genotype']).size().unstack()
     cpg_counts = median_df.groupby(['cpg', unit, 'Genotype']).size().unstack()
     cpg_counts_10 = cpg_counts[cpg_counts > 10].dropna(how= 'all').index.levels[0]
-    Loop_stats(median_df)
+    # Loop_stats(median_df)
 
 
-    # CPGs of interest --> save the median table just for those
-    # TODO: Automate the finding of cpgs of interest ! eg :
-    # cpgs_interest = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg'].unique()
-    # highest p-val for highmildhighsev : ['17:46065976:1', '12:112942465:1', '21:33229986:3'] # highest rho
-    # dict_cpgs = {#'INTEREST': ['17:46768336:3', '6:33069193:2'],
-    #              # 'HIGHmildHIGHsev': ['12:112925744:1', '17:46065976:1', '21:33229986:3'],
-    #              # 'EXTRA': ['3:45848456:1', '21:33226777:1', '21:33242527:1'],
-    #              'Hsev_Lmild': ['9:133271878:1','1:155209089:1'],
-    #              'Lsev_Hmild': ['9:133271842:1']}
-
-    # CPGs interesting from MILD vs SEVERE analysis
-    # merge = pd.merge(stat_mild, stat_sev, on=['cpg', 'SNP'], suffixes=['_mild', '_sev'])
-    # index_counts = merge.filter(regex='Counts*')[merge.filter(regex='Counts*') < 3].dropna(thresh=6).index
-    # merge.drop(index_counts, inplace=True)
-    # merge.loc[merge['Spearman correlation p_value_mild'] < 1e-5, 'log_mild'] = 'High'
-    # merge.loc[merge['Spearman correlation p_value_sev'] < 1e-5, 'log_sev'] = 'High'
-    # merge.loc[merge['Spearman correlation p_value_sev'] > 1e-5, 'log_sev'] = 'Low'
-    # merge.loc[merge['Spearman correlation p_value_mild'] > 1e-5, 'log_mild'] = 'Low'
-    # cpg_highsev_lowmild = merge[(merge['log_sev'] == 'High') & (merge['log_mild'] == 'Low')]['cpg'].unique()
-    # cpg_lowsev_highmild = merge[(merge['log_sev'] == 'Low') & (merge['log_mild'] == 'High')]['cpg'].unique()
-    # merge[(merge['log_sev'] == 'High') & (merge['log_mild'] == 'Low') & (merge['Spearman correlation rho_mild'] > -0.25) &(merge['Spearman correlation rho_mild'] < 0) & (merge['Spearman correlation rho_sev'] < -0.5) & (merge['Spearman correlation rho_sev'] < 0)]['cpg'].unique()
-    # merge[(merge['log_sev'] == 'Low') & (merge['log_mild'] == 'High') & (merge['Spearman correlation rho_sev'] > -0.25) &(merge['Spearman correlation rho_sev'] < 0) & (merge['Spearman correlation rho_mild'] < -0.5) & (merge['Spearman correlation rho_mild'] < 0)]['cpg'].unique()
-    # merge['CHR'] = merge['SNP'].str.split(':', expand=True)[0].astype('category')
-    # merge[(merge['log_sev'] == 'High') & (merge['log_mild'] == 'High')].sort_values(by=['Spearman correlation rho_sev', 'Spearman correlation rho_mild']).groupby('CHR').head(1)['cpg'].tolist()
-    # merge[(merge['log_sev'] == 'High') | (merge['log_mild'] == 'High')].sort_values(by=['Spearman correlation rho_sev', 'Spearman correlation rho_mild']).groupby('CHR').head(1)['cpg'].tolist()
-    # index_rhoneg = cpg_highsev_lowmild[(cpg_highsev_lowmild['Spearman correlation rho_sev'] < -0.25)
-    #                         & (cpg_highsev_lowmild['Spearman correlation rho_mild'] > -0.35)
-    #                         ].dropna(how='all').dropna(how='all', axis=1).index
-    # cpg_highsev_lowmild.loc[index_rhoneg]['cpg'].unique().tolist()
 
 
 if __name__ == '__main__':
-    main(file)
+    main(file, unit)
 
 
 def joint_model():
+    pass
     # TODO: Joint model
     # transform to normal distrib inverse norm)
     # INVERSE NORMALISATION
@@ -190,3 +162,37 @@ def joint_model():
     # lm(medianlog ~ snp * clinical, data)
     # lm(invnorm(medianlog) ~ snp + clinical + snp * clinical, data)
     # lm(invnorm(median_log_hap) ~ allele * clinical , haplotype_data)
+
+
+
+
+
+# CPGs of interest --> save the median table just for those
+# TODO: Automate the finding of cpgs of interest ! eg :
+# cpgs_interest = stat[(stat['Counts 0/0'] > 3) & (stat['Counts 1/1'] > 3) & (stat['Counts 0/1'] > 3) & (stat['Spearman correlation p_value'] < 1e-5)]['cpg'].unique()
+# highest p-val for highmildhighsev : ['17:46065976:1', '12:112942465:1', '21:33229986:3'] # highest rho
+# dict_cpgs = {#'INTEREST': ['17:46768336:3', '6:33069193:2'],
+#              # 'HIGHmildHIGHsev': ['12:112925744:1', '17:46065976:1', '21:33229986:3'],
+#              # 'EXTRA': ['3:45848456:1', '21:33226777:1', '21:33242527:1'],
+#              'Hsev_Lmild': ['9:133271878:1','1:155209089:1'],
+#              'Lsev_Hmild': ['9:133271842:1']}
+
+# CPGs interesting from MILD vs SEVERE analysis
+# merge = pd.merge(stat_mild, stat_sev, on=['cpg', 'SNP'], suffixes=['_mild', '_sev'])
+# index_counts = merge.filter(regex='Counts*')[merge.filter(regex='Counts*') < 3].dropna(thresh=6).index
+# merge.drop(index_counts, inplace=True)
+# merge.loc[merge['Spearman correlation p_value_mild'] < 1e-5, 'log_mild'] = 'High'
+# merge.loc[merge['Spearman correlation p_value_sev'] < 1e-5, 'log_sev'] = 'High'
+# merge.loc[merge['Spearman correlation p_value_sev'] > 1e-5, 'log_sev'] = 'Low'
+# merge.loc[merge['Spearman correlation p_value_mild'] > 1e-5, 'log_mild'] = 'Low'
+# cpg_highsev_lowmild = merge[(merge['log_sev'] == 'High') & (merge['log_mild'] == 'Low')]['cpg'].unique()
+# cpg_lowsev_highmild = merge[(merge['log_sev'] == 'Low') & (merge['log_mild'] == 'High')]['cpg'].unique()
+# merge[(merge['log_sev'] == 'High') & (merge['log_mild'] == 'Low') & (merge['Spearman correlation rho_mild'] > -0.25) &(merge['Spearman correlation rho_mild'] < 0) & (merge['Spearman correlation rho_sev'] < -0.5) & (merge['Spearman correlation rho_sev'] < 0)]['cpg'].unique()
+# merge[(merge['log_sev'] == 'Low') & (merge['log_mild'] == 'High') & (merge['Spearman correlation rho_sev'] > -0.25) &(merge['Spearman correlation rho_sev'] < 0) & (merge['Spearman correlation rho_mild'] < -0.5) & (merge['Spearman correlation rho_mild'] < 0)]['cpg'].unique()
+# merge['CHR'] = merge['SNP'].str.split(':', expand=True)[0].astype('category')
+# merge[(merge['log_sev'] == 'High') & (merge['log_mild'] == 'High')].sort_values(by=['Spearman correlation rho_sev', 'Spearman correlation rho_mild']).groupby('CHR').head(1)['cpg'].tolist()
+# merge[(merge['log_sev'] == 'High') | (merge['log_mild'] == 'High')].sort_values(by=['Spearman correlation rho_sev', 'Spearman correlation rho_mild']).groupby('CHR').head(1)['cpg'].tolist()
+# index_rhoneg = cpg_highsev_lowmild[(cpg_highsev_lowmild['Spearman correlation rho_sev'] < -0.25)
+#                         & (cpg_highsev_lowmild['Spearman correlation rho_mild'] > -0.35)
+#                         ].dropna(how='all').dropna(how='all', axis=1).index
+# cpg_highsev_lowmild.loc[index_rhoneg]['cpg'].unique().tolist()
