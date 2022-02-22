@@ -101,7 +101,9 @@ def main(file, unit, dir_out=''):
     all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
 
     # TODO: check if we still need filtering at this point
-    snp_ls = pd.read_table('base_called_from_bam_files/finemapped_controls_bases_at_snps_10012022.txt', header=None, names=['sample_id', 'covid_snp', 'read_name', 'base_called'])[unit].unique()
+    colnames_basefile = ['sample_id', 'control_snp', 'covid_snp',
+                         'control_snp_rs', 'covid_snp_rs', 'read_name', 'base_called']
+    snp_ls = pd.read_table('base_called_from_bam_files/finemapped_controls_bases_at_snps_10012022.txt', header=None, names=colnames_basefile)[unit].unique()
     gen_ls = ['0/0', '0/1', '1/1']
     print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(gen_ls) == False].shape[0], flush=True)
     print('\nNumber of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0], flush=True)
