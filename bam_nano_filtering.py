@@ -21,20 +21,35 @@ def lsf_arrray(file_list):
     return file_array
 
 
-def grep_target_readnames(file, list_readnames, nanopolish_input, output='', control=True):
-    with open(f'{os.path.join(output, file + "_readnames.temp")}', 'w') as f:
+def grep_target_readnames(file, list_readnames, nanopolish_input_dir, output='', control=True):
+    new_file = os.path.join(output, file)
+    with open(f'{new_file + "_readnames.temp")}', 'w') as f:
         f.writelines('\n'.join(list_readnames))
         f.writelines(['\n'])
-    nano_file = os.path.join(nanopolish_input, file + '.tsv.gz')
-    os.system(
-        f'zcat {nano_file} | head -n 1 > {os.path.join(output, file)}_greped.txt')
-    os.system(
-        f'zcat {nano_file} | grep -f {os.path.join(output, file + "_readnames.temp")} >> {os.path.join(output, file + "_greped.txt")}')
+    nano_file = os.path.join(nanopolish_input_dir, file) + '.tsv.gz'
+    os.system(f'zcat {nano_file} | head -n 1 > {new_file)}_greped.txt')
+    os.system(f'zcat {nano_file} | grep -f {new_file}_readnames.temp) >> {new_file}_greped.txt')
+    # Removing the lines containg extra fields:
+    os.system(f'cut -f12,13,14,15,16,17,18,19,20 {new_file}_greped.txt > {new_file} _extracols.txt')
+    os.system(f'sed -i "/^[[:space:]]*$/d" {new_file}_extracols.txt')
+    line_extracols = len(open(new_file + "_extracols.txt")).readlines())
+        if line_extracols != 0:
+            print('This file has too many fields !')
+            os.system(f'grep -f {new_file}_extracols.txt {new_file}_greped.txt > {new_file}_greped_extracols)
+            line_greped = len(open(new_file + "_greped_extracols")).readlines())
+            if line_extracols != line_greped:
+                print(f'ERROR removed too much line corresponding to extra fields lines {line_extracols - line_greped}')
+            os.system(f'grep -vf {new_file}_extracols.txt {new_file}_greped.txt > {new_file}_new.txt')
+            os.remove(f'{new_file}_greped.txt ')
+            os.system(f'mv {new_file}_new.txt {new_file}_greped.txt')
+
     if control:
-        # TODO: Call or redo Tom's script to count the readnames per chromosome instead of total
+        # TODO: Call or redo Tom's script to count the readnames per chromosome instead of total?
         os.system(
-            f'grep -v -f {os.path.join(output, file + "_readnames.temp")} {os.path.join(output, file + "_greped.txt")} > {os.path.join(output, file + "_notrecognized_readnames.txt")}')
-    os.remove(f'{os.path.join(output, file + "_readnames.temp")}')
+            f'grep -v -f {new_file}_readnames.temp) {new_file}_greped.txt > {new_file}_notrecognized_readnames.txt')
+    os.remove(f'{new_file}_readnames.temp')
+    os.remove(f'{new_file}_extracols.txt')
+    return f'{new_file}_greped.txt'
 
 
 def genotype_frombasecalling(df, t=0.90, print_counts=False):
@@ -105,33 +120,29 @@ def filtering_datas(df, list_snp=[], fine_mapping=False):
 
     # Filtering out the deletions
     new_df = df[df['ref'].str.len() < 2].copy()
-    log['deletions'] = int(df.shape[0] - new_df.shape[0])
-    shape_diff = new_df.shape[0]
+    log['deletions'], shape_diff = int(df.shape[0] - new_df.shape[0]), new_df.shape[0]
 
     # Filtering out the miss-called alleles
     # (ie haplotype not corresponding nor to ref nor to alt)
     new_df = new_df[new_df['Genotype'].str.contains('2') == False]
-    log['miss-called'] = int(shape_diff - new_df.shape[0])
-    shape_diff = new_df.shape[0]
+    log['miss-called'], shape_diff = int(shape_diff - new_df.shape[0]), new_df.shape[0]
 
     # Filtering out the reads_names associated with several CHR
     double_chr = new_df.groupby(
         ['read_name', 'chromosome']).size().unstack().dropna(thresh=2).index
-    if len(double_chr) > 0:
-        new_df.drop(double_chr, inplace=True)
-    log['read_name in several chr'] = int(shape_diff - new_df.shape[0])
-    shape_diff = new_df.shape[0]
+    if len(double_chr) > 0: new_df.drop(double_chr, inplace=True)
+    log['read_name in several chr'], shape_diff = int(shape_diff - new_df.shape[0]), new_df.shape[0]
 
     # Filtering for specific SNPs
     if fine_mapping:
-        # TODO: Add kwargs to modify the finemapping
+        # TODO: Add kwargs to modify the finemapping or remove ??
         list_snp = select_SNP_per_pvalue(fine_mapping,
                                          pval_col='all_inv_var_meta_p',
                                          dist_bp=500000)
 
     if list_snp:
         new_df = new_df[new_df['covid_snp'].isin(list_snp)]
-        log['snp_filtering'] = int(shape_diff - new_df.shape[0])
+        log['snp_filtering'], shape_diff = int(shape_diff - new_df.shape[0]), new_df.shape[0]
 
     log['final shape'] = str(new_df.shape)
     return new_df, log
@@ -147,31 +158,31 @@ def nanopolish_formatting(nano):
         nano['pos'].astype(int) - nano['start'].astype(int))
 
 
-def merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp,
+def merge_basefile_and_nanofile(file, colnames_basefile, target_snp,
                                 nanopolish_input, list_snp=[], title='',
                                 fine_mapping=True):
     # Opening base calling file
-    base_df = pd.read_table(base_file, header=None, names=colnames_basefile)
+    base_df = pd.read_table(file, header=None, names=colnames_basefile, dtype='object')
     base_df[['chromosome', 'pos', 'ref', 'alt']
             ] = base_df[target_snp].str.split(':', expand=True)
-    list_readnames = list(base_df['read_name'].unique())
-    base_file = os.path.basename(base_file).split('.')[0]
-    print(base_file, flush=True)
-    # Recuperation of the read names and grepping nanopolish file
-    grep_target_readnames(base_file, list_readnames, nanopolish_input=nanopolish_input,
-                          output=f'nanopolish_greped{title}', control=True)
+    file = os.path.basename(file).split('.')[0]
+    print(file, flush=True)
+
     base_df = genotype_frombasecalling(base_df, t=0.90, print_counts=False)
     # Filtering datas
-    base_df, log = filtering_datas(
-        base_df, list_snp=list_snp, fine_mapping=fine_mapping)
+    base_df, log = filtering_datas(base_df, list_snp=list_snp, fine_mapping=fine_mapping)
     print(log)
-    base_df = base_df.astype(object)
 
-    # Reading and merging nanopolish file
-    nano = pd.read_table(f'nanopolish_greped{title}/{base_file}.txt')
-    nano['sample_id'] = base_file
-    nano['chromosome'] = nano['chromosome'].astype(str)
-    nano = nano.astype(object)
+    # Recuperation of the read names and grepping nanopolish file
+    greped_nano = grep_target_readnames(file, list(base_df['read_name'].unique()), nanopolish_input=nanopolish_input,
+                          output=f'nanopolish_greped{title}', control=True)
+
+    # Reading and formatting nanopolish file
+    nano = pd.read_table(greped_nano, dtype='object')
+    nano['sample_id'] = file
+    nanopolish_formatting(nano)
+
+    # Merging nanopolish file with basecalling file
     merge = pd.merge(nano, base_df, on=['chromosome', 'read_name', 'sample_id'],
                      copy=False)
 
@@ -183,7 +194,6 @@ def merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp,
               f'merged file: {merge.shape}', flush=True)
     del nano, base_df
 
-    nanopolish_formatting(merge)
     return merge
 
 
@@ -213,6 +223,7 @@ def main(dir, nanopolish_input, target_snp, file_snps='', lsb=False, fine_mappin
             try:
                 merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
                                                     target_snp, nanopolish_input, list_snp, title, fine_mapping=False)
+                merge.drop_duplicates(inplace=True)
                 if base_file in list_files[0]:
                     merge.to_csv(f'nanopolish_greped{title}/Filtered_nano_bam_files{title}.csv', mode='w',
                                  header=True, index=False)
@@ -228,6 +239,7 @@ def main(dir, nanopolish_input, target_snp, file_snps='', lsb=False, fine_mappin
         try:
             merge = merge_basefile_and_nanofile(base_file, colnames_basefile,
                                                 target_snp, nanopolish_input, list_snp, title, fine_mapping=fine_mapping)
+            merge.drop_duplicates(inplace=True)
             # Saving
             merge.to_csv(f'nanopolish_greped{title}/Filtered_nano_bam_files{title}_{os.path.basename(base_file)[:-4]}.csv', mode='w',
                          header=True, index=False)
