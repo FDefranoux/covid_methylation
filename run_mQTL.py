@@ -109,7 +109,7 @@ def main(yaml_file, steps='all'):
         # Bam-basecalling file genotyped/filtered/merged with corresponding nanopolish file
         os.chdir(temp_dir)
         for n, (base_call, nano) in enumerate(zip(nano_files, basecal_files)):
-            print(n, base_call, nano, fush=True)
+            print(n, base_call, nano, flush=True)
             assert os.path.basename(base_call).split('.')[0] == os.path.basename(nano).split('.')[0], f'The files are not corresponding {base_call, nano}'
             mem = find_mem_request(nano, base_call)
             os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 ../../bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
