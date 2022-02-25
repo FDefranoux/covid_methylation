@@ -62,7 +62,7 @@ def main(yaml_file, steps='all'):
     # Extracting the arguments in
     yml = yaml_parser(f'{yaml_file}_new')
     yml_ls = [f'{key}: {value}' for key,value in yml['other'].items()]
-    print(f'# VARIABLES\n {"\n".join(yml_ls)}')
+    print(f'# VARIABLES\n {"---".join(yml_ls)}')
 
     # Creating the output drectory
     dir, n = yml['output_directory'], 0
