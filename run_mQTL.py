@@ -2,7 +2,13 @@ import sys
 import os
 import glob
 import pandas as pd
-sys.path.insert(0, "../Utils")
+import socket
+host = socket.gethostname()
+if 'Fanny' in host:
+    path_utils = '/home/fanny/Work/EBI/Utils'
+else:
+    path_utils = '/nfs//research/birney/users/fanny/Utils'
+sys.path.insert(0, path_utils)
 from utils import *
 import re
 
