@@ -7,7 +7,7 @@ host = socket.gethostname()
 if 'Fanny' in host:
     path_utils = '/home/fanny/Work/EBI/Utils'
 else:
-    path_utils = '/nfs//research/birney/users/fanny/Utils'
+    path_utils = '/nfs/research/birney/users/fanny/Utils'
 sys.path.insert(0, path_utils)
 from utils import *
 import time
