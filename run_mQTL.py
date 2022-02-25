@@ -1,8 +1,8 @@
 import sys
 import os
-import glob
-import pandas as pd
 import socket
+import argparse
+import pandas as pd
 host = socket.gethostname()
 if 'Fanny' in host:
     path_utils = '/home/fanny/Work/EBI/Utils'
@@ -10,36 +10,40 @@ else:
     path_utils = '/nfs//research/birney/users/fanny/Utils'
 sys.path.insert(0, path_utils)
 from utils import *
+import time
 import re
+from math import ceil
 
 
 def arg_parsing():
-        parser = argparse.ArgumentParser(description='Pipeline for mQTLs')
-        parser.add_argument('yaml_file', type=str,
-                            help='File storing the parameters of the analysis')
-        parser.add_argument('-s', '--steps' , type=str, default='all',
-                            help='Step to perform analysis')
-        args = parser.parse_args()
-        print(str(time.asctime()))
-        print('The arguments are: ', vars(args), '\n')
-        sys.stderr.write('\n' + str(time.asctime())
-                         + ' -- Arguments: ' + str(vars(args)) + '\n')
-        return args
+    parser = argparse.ArgumentParser(description='Pipeline for mQTLs')
+    parser.add_argument('yaml_file', type=str,
+                        help='File storing the parameters of the analysis')
+    parser.add_argument('-s', '--steps' , type=str, default='all',
+                        help='Step to perform analysis')
+    args = parser.parse_args()
+    print(str(time.asctime()))
+    print('The arguments are: ', vars(args), '\n')
+    sys.stderr.write('\n' + str(time.asctime())
+                     + ' -- Arguments: ' + str(vars(args)) + '\n')
+    return args
 
 
 def correspondance_list_files(list1, list2):
-    list1_base = set([os.path.basename(file).split('.')[0] for file in list1])
-    list2_base = set([os.path.basename(file).split('.')[0] for file in list2])
-    list1 = [file for file in list1 if os.path.basename(file).split('.')[0] in list1_base & list2_base]
-    list2 = [file for file in list2 if os.path.basename(file).split('.')[0] in list1_base & list2_base]
+    list1_base = {os.path.basename(file).split('.')[0] for file in list1}
+    list2_base = {os.path.basename(file).split('.')[0] for file in list2}
+    list1 = [file for file in list1 if os.path.basename(file).split('.')[0] in
+        list1_base & list2_base]
+    list2 = [file for file in list2 if os.path.basename(file).split('.')[0] in
+        list1_base & list2_base]
     return list1, list2
 
 
 def select_SNP_per_pvalue(file, pval_col, dist_bp=500000):
     snp_df = pd.read_table(file, usecols=['#CHR', 'POS', 'SNP', pval_col])
     best_snp = []
-    for chr in snp_df['#CHR'].unique():
-        chr_df = snp_df[snp_df['#CHR'] == chr]
+    for chrom in snp_df['#CHR'].unique():
+        chr_df = snp_df[snp_df['#CHR'] == chrom]
         while chr_df.shape[0] > 0:
             best_pval = chr_df[pval_col].min()
             best_snp += chr_df[chr_df[pval_col]
@@ -52,7 +56,6 @@ def select_SNP_per_pvalue(file, pval_col, dist_bp=500000):
 
 
 def find_mem_request(nano, base):
-    from math import ceil
     nano_size = os.path.getsize(nano) / 1000000
     base_size = os.path.getsize(base)
     if (nano_size < 1) or (base_size < 1):
@@ -71,14 +74,14 @@ def main(yaml_file, steps='all'):
     print(f'# VARIABLES\n {"---".join(yml_ls)}')
 
     # Creating the output drectory
-    dir, n = yml['output_directory'], 0
-    while os.path.exists(dir):
+    out_dir, n = yml['output_directory'], 0
+    while os.path.exists(out_dir):
         n = n + 1
-        dir = yml['output_directory'] + str(n)
-    os.makedirs(dir)
-    os.makedirs(os.path.join(dir, 'temp'))
-    temp_dir = os.path.join(dir, 'temp')
-    os.system(f"cp {yaml_file}_new {dir}")
+        out_dir = yml['output_directory'] + str(n)
+    os.makedirs(out_dir)
+    os.makedirs(os.path.join(out_dir, 'temp'))
+    temp_dir = os.path.join(out_dir, 'temp')
+    os.system(f"cp {yaml_file}_new {out_dir}")
 
     # Verification of the list of files bam and nano
     nano_files = directory_to_file_list(yml['nanopolish_directory'])
@@ -90,7 +93,7 @@ def main(yaml_file, steps='all'):
     # Finemapping when required
     target_snp = yml['snp_type']
     if yml['snp_list']:
-            assert os.path.exist(yml['snp_list']), 'Error with the file containing the snps'
+        assert os.path.exist(yml['snp_list']), 'Error with the file containing the snps'
     if yml['finemapping']:
         # TODO: Implement the selection of some SNP if necessary
         # TODO: verificationin cpg_analysis that we have only the SNPs we targetted
@@ -104,7 +107,7 @@ def main(yaml_file, steps='all'):
         # Bam-basecalling file genotyped/filtered/merged with corresponding nanopolish file
         os.chdir(temp_dir)
         for n, (base_call, nano) in enumerate(zip(nano_files, basecal_files)):
-            print(n, basecall, nano)
+            print(n, base_call, nano, target_snp)
         #     assert os.path.basename(base_call).split('.')[0] == os.path.basename(nano).split('.')[0], f'The files are not corresponding {base_call, nano}'
         #     mem = find_mem_request(nano, base_call)
         #     os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 ../../bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
