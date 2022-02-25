@@ -6,8 +6,11 @@ import pandas as pd
 host = socket.gethostname()
 if 'Fanny' in host:
     path_utils = '/home/fanny/Work/EBI/Utils'
+    ABS_PATH = '/home/fanny/Work/EBI/covid_nanopore'
 else:
     path_utils = '/nfs/research/birney/users/fanny/Utils'
+    ABS_PATH = '/nfs/research/birney/users/fanny/covid_nanopore'
+
 sys.path.insert(0, path_utils)
 from utils import *
 import time
@@ -112,10 +115,10 @@ def main(yaml_file, steps='all'):
             print(n, base_call, nano, flush=True)
             assert os.path.basename(base_call).split('.')[0] == os.path.basename(nano).split('.')[0], f'The files are not corresponding {base_call, nano}'
             mem = find_mem_request(nano, base_call)
-            os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 ../../bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
+            os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
 
             # Open the output and rerun all the LSF memory errors
-            rerun_more_mem = f'bsub -Jbamnano{n} -M{mem + 5000} -ebamnano{n}.out -obamnano{n}.out "python3 ../../bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
+            rerun_more_mem = f'bsub -Jbamnano{n} -M{mem + 5000} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
             os.system(f'bsub -w"done(bamnano{n}_verif)" -Jbamnano{n} python3 quality_analysis.py bamnano{n}.out {rerun_more_mem}')
 
         # Merging all files together
