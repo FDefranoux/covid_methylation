@@ -80,7 +80,7 @@ def main(yaml_file, steps='all'):
     os.makedirs(out_dir)
     os.makedirs(os.path.join(out_dir, 'temp'))
     temp_dir = os.path.join(out_dir, 'temp')
-    os.system(f"cp {yaml_file}_new {out_dir}")
+    os.system(f"cp {yaml_file[:-4]}_new.yml {out_dir}")
 
     # Verification of the list of files bam and nano
     nano_files = directory_to_file_list(yml['nanopolish_directory'])
