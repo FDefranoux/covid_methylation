@@ -1,0 +1,16 @@
+io:
+  inputFile: /nfs/research/birney/users/fanny/covid_nanopore/run_mQTLs.py
+  outputDir: /nfs/research/birney/users/fanny/covid_nanopore/mQTLs
+  errorAppendFile: /nfs/research/birney/users/fanny/covid_nanopore/mQTLs/output_mQTLs%J
+  outputAppendFile: /nfs/research/birney/users/fanny/covid_nanopore/mQTLs/output_mQTLs%J
+limit:
+  memLimit: 5000
+# command: python3 run_mQTL.py yaml_mQTLs.yml
+command: sleep 10
+
+basecalling_directory:
+  output_directory:
+  nanopolish_directory:
+  basecalling_directory:
+  snp_type:
+  finemapping: False
