@@ -24,8 +24,6 @@ def arg_parsing():
     args = parser.parse_args()
     print(str(time.asctime()))
     print('The arguments are: ', vars(args), '\n')
-    sys.stderr.write('\n' + str(time.asctime())
-                     + ' -- Arguments: ' + str(vars(args)) + '\n')
     return args
 
 
@@ -67,9 +65,9 @@ def find_mem_request(nano, base):
 
 def main(yaml_file, steps='all'):
 
-    os.system(f"sed -e 's/^#//' {yaml_file} > {yaml_file}_new")
+    os.system(f"sed -e 's/^# //' {yaml_file} > {yaml_file}_new")
     # Extracting the arguments in
-    yml = yaml_parser(f'{yaml_file}_new')
+    yml = yaml_parser(f'{yaml_file[-4]}_new.txt')
     yml_ls = [f'{key}: {value}' for key,value in yml['other'].items()]
     print(f'# VARIABLES\n {"---".join(yml_ls)}')
 
