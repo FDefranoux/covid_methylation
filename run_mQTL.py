@@ -6,8 +6,11 @@ import pandas as pd
 host = socket.gethostname()
 if 'Fanny' in host:
     path_utils = '/home/fanny/Work/EBI/Utils'
+    ABS_PATH = '/home/fanny/Work/EBI/covid_nanopore'
 else:
     path_utils = '/nfs/research/birney/users/fanny/Utils'
+    ABS_PATH = '/nfs/research/birney/users/fanny/covid_nanopore'
+
 sys.path.insert(0, path_utils)
 from utils import *
 import time
