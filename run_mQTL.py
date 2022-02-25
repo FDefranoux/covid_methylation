@@ -9,7 +9,7 @@ import re
 
 def arg_parsing():
         parser = argparse.ArgumentParser(description='Pipeline for mQTLs')
-        parser.add_argument('yaml_file', , type=str
+        parser.add_argument('yaml_file', type=str,
                             help='File storing the parameters of the analysis')
         parser.add_argument('-s', '--steps' , type=str, default='all',
                             help='Step to perform analysis')
