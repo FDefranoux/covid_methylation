@@ -65,9 +65,9 @@ def find_mem_request(nano, base):
 
 def main(yaml_file, steps='all'):
 
-    os.system(f"sed -e 's/^# //' {yaml_file} > {yaml_file}_new")
+    os.system(f"sed -e 's/^# //' {yaml_file} > {yaml_file[:-4]}_new.yml")
     # Extracting the arguments in
-    yml = yaml_parser(f'{yaml_file[-4]}_new.txt')
+    yml = yaml_parser(f'{yaml_file[:-4]}_new.yml')
     yml_ls = [f'{key}: {value}' for key,value in yml['other'].items()]
     print(f'# VARIABLES\n {"---".join(yml_ls)}')
 
