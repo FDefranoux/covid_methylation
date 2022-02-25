@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-import glob
+import argparse
 
 
 ################################################################################
@@ -98,17 +98,17 @@ def grep_target_readnames(nano_file, list_readnames, control=True):
     # Recuperating the lines contaning extra fields:
     os.system(f'cut -f12,13,14,15,16,17,18,19,20 {out_file}_greped.txt > {out_file} _extracols.txt')
     os.system(f'sed -i "/^[[:space:]]*$/d" {out_file}_extracols.txt') # del blank lines
-    line_extracols = len(open(out_file + "_extracols.txt")).readlines())
-        if line_extracols != 0:
-            print(f'\nThis file has too many fields ! {out_file}')
-            # Verification that we will grep out not more than the extra-field lines
-            os.system(f'grep -f {out_file}_extracols.txt {out_file}_greped.txt > {out_file}_greped_extracols')
-            line_greped = len(open(out_file + "_greped_extracols")).readlines())
-            if line_extracols != line_greped:
-                print(f'ERROR removed too much line corresponding to extra fields lines {line_extracols - line_greped}')
-            os.system(f'grep -vf {out_file}_extracols.txt {out_file}_greped.txt > {out_file}_new.txt')
-            os.remove(f'{out_file}_greped_extracols')
-            os.system(f'mv {out_file}_new.txt {out_file}_greped.txt')
+    line_extracols = len(open(out_file + "_extracols.txt").readlines())
+    if line_extracols != 0:
+        print(f'\nThis file has too many fields ! {out_file}')
+        # Verification that we will grep out not more than the extra-field lines
+        os.system(f'grep -f {out_file}_extracols.txt {out_file}_greped.txt > {out_file}_greped_extracols')
+        line_greped = len(open(out_file + "_greped_extracols").readlines())
+        if line_extracols != line_greped:
+            print(f'ERROR removed too much line corresponding to extra fields lines {line_extracols - line_greped}')
+        os.system(f'grep -vf {out_file}_extracols.txt {out_file}_greped.txt > {out_file}_new.txt')
+        os.remove(f'{out_file}_greped_extracols')
+        os.system(f'mv {out_file}_new.txt {out_file}_greped.txt')
 
     os.remove(f'{out_file}_extracols.txt')
     return f'{out_file}_greped.txt'
@@ -127,6 +127,7 @@ def nanopolish_formatting(nanopolish_file, list_readnames, **kwargs):
         str) + ':' + nano['num_motifs'].astype(str)
     nano.loc[nano['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
         nano['pos'].astype(int) - nano['start'].astype(int))
+    return nano
 
 
 def merge_basefile_and_nanofile(basecalling_file, nanopolish_file, target_snp):
@@ -134,8 +135,8 @@ def merge_basefile_and_nanofile(basecalling_file, nanopolish_file, target_snp):
     # Opening base calling file and generating genotype (+filtering)
     called_base_df = genotype_frombasecalling(basecalling_file, target_snp, t=0.90, print_counts=False, filtering=True)
 
-    # Selecting readnames of interest from nanopolish file + formatting the table
-    nano_df = nanopolish_formatting(nanopolish_file, list(called_base_df['read_name'].unique()), kwargs={control: True})
+    # Selecting readnames of interest from nanopolish file+formatting the table
+    nano_df = nanopolish_formatting(nanopolish_file, list(called_base_df['read_name'].unique()), kwargs={'control': True})
 
     # Merging nanopolish file with basecalling file
     merge = pd.merge(nano_df, called_base_df, on=['chromosome', 'read_name', 'sample_id'],
@@ -159,7 +160,7 @@ def main(basecalling_file, nanopolish_file, target_snp):
     try:
         merge = merge_basefile_and_nanofile(basecalling_file, nanopolish_file, target_snp)
         # Saving individual files
-        merge.to_csv(f'Filtered_nano_bam_files_{os.path.basename(basecalling_file).split('.')[0]}.csv',
+        merge.to_csv(f'Filtered_nano_bam_files_{os.path.basename(basecalling_file).split(".")[0]}.csv',
                     mode='w', header=True, index=False)
     except Exception as err:
         print(basecalling_file, 'ERROR', err, flush=True)
@@ -168,9 +169,9 @@ def main(basecalling_file, nanopolish_file, target_snp):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='STEP1 - Pipeline for mQTLs'
         + ' - Association of the basecalling file from BAM with nanopolish files')
-    parser.add_argument('basecalling_file', , type=str, help='basecalling file')
-    parser.add_argument('nanopolish_file', , type=str, help='nanopolish file')
-    parser.add_argument('target_snp', , type=str, help='which SNP (covid or control)')
+    parser.add_argument('basecalling_file', type=str, help='basecalling file')
+    parser.add_argument('nanopolish_file', type=str, help='nanopolish file')
+    parser.add_argument('target_snp', type=str, help='which SNP (covid or control)')
     args = parser.parse_args()
     main(**vars(args))
 
