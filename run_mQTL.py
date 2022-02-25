@@ -70,7 +70,7 @@ def main(yaml_file, steps='all'):
     yml = yaml_parser(f'{yaml_file[:-4]}_new.yml')
     yml = yml['other']
     yml_ls = [f'{key}: {value}' for key,value in yml.items()]
-    print(f'# VARIABLES\n {"---".join(yml_ls)}')
+    print(f'# VARIABLES\n {"   ---    ".join(yml_ls)}')
 
     # Creating the output drectory
     out_dir, n = yml['output_directory'], 0
@@ -91,14 +91,14 @@ def main(yaml_file, steps='all'):
 
     # Finemapping when required
     target_snp = yml['snp_type']
-    if yml['snp_list']:
-        assert os.path.exist(yml['snp_list']), 'Error with the file containing the snps'
-    if yml['finemapping']:
-        # TODO: Implement the selection of some SNP if necessary
-        # TODO: verificationin cpg_analysis that we have only the SNPs we targetted
-        snp_ls = select_SNP_per_pvalue(yml['finemapping']['file'],
-                                       yml['finemapping']['pval_col'],
-                                       dist_bp=yml['finemapping']['distance_bp'])
+    # if yml['snp_list']:
+    #     assert os.path.exist(yml['snp_list']), 'Error with the file containing the snps'
+    # if yml['finemapping']:
+    #     # TODO: Implement the selection of some SNP if necessary
+    #     # TODO: verificationin cpg_analysis that we have only the SNPs we targetted
+    #     snp_ls = select_SNP_per_pvalue(yml['finemapping']['file'],
+    #                                    yml['finemapping']['pval_col'],
+    #                                    dist_bp=yml['finemapping']['distance_bp'])
 
     # Defining the steps of the pipeline to run
     # TODO: Change the way the steps are managed
