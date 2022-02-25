@@ -68,7 +68,8 @@ def main(yaml_file, steps='all'):
     os.system(f"sed -e 's/^# //' {yaml_file} > {yaml_file[:-4]}_new.yml")
     # Extracting the arguments in
     yml = yaml_parser(f'{yaml_file[:-4]}_new.yml')
-    yml_ls = [f'{key}: {value}' for key,value in yml['other'].items()]
+    yml = yml['other']
+    yml_ls = [f'{key}: {value}' for key,value in yml.items()]
     print(f'# VARIABLES\n {"---".join(yml_ls)}')
 
     # Creating the output drectory
