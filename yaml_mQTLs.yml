@@ -1,8 +1,8 @@
 properties:
   jobName: test_gcc0085*
 io:
-  errorAppendFile: /nfs/research/birney/users/fanny/covid_nanopore/TEST/output_mQTLs%J
-  outputAppendFile: /nfs/research/birney/users/fanny/covid_nanopore/TEST/output_mQTLs%J
+  errorAppendFile: /nfs/research/birney/users/fanny/covid_nanopore/output_mQTLs%J
+  outputAppendFile: /nfs/research/birney/users/fanny/covid_nanopore/output_mQTLs%J
 limit:
   memLimit: 5000
 command: python3 run_mQTL.py yaml_mQTLs.yml

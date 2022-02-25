@@ -77,8 +77,8 @@ def main(yaml_file, steps='all'):
     # Creating the output drectory
     out_dir, n = yml['output_directory'], 0
     while os.path.exists(out_dir):
-        n = n + 1
-        out_dir = yml['output_directory'] + str(n)
+        n = '-'.join([str(n) for n in time.localtime(time.time())[0:5]])
+        out_dir = yml['output_directory'] + n
     os.makedirs(out_dir)
     os.makedirs(os.path.join(out_dir, 'temp'))
     temp_dir = os.path.join(out_dir, 'temp')
@@ -119,7 +119,8 @@ def main(yaml_file, steps='all'):
             os.system(f'bsub -w"done(bamnano{n})" -Jbamnano{n} python3 quality_analysis.py bamnano{n}.out {rerun_more_mem}')
 
         # Merging all files together
-        os.system(f'bsub -w"done(bamnano0)" -Jhead -e /dev/null -o /dev/null "head -n1 Filtered_nano_bam_files_{os.path.basename(basecal_files[0]).split('.')[0]}.csv > ../Filtered_nano_bam_files.csv"')
+        first = os.path.basename(basecal_files[0]).split('.')[0]
+        os.system(f'bsub -w"done(bamnano0)" -Jhead -e /dev/null -o /dev/null "head -n1 Filtered_nano_bam_files_{first}.csv > ../Filtered_nano_bam_files.csv"')
         os.system(f'bsub -w"done(bamnano*)" -Jmerge -emerge.out -omerge.out "tail -n+2 -q Filtered_nano_bam_files_* >> ../Filtered_nano_bam_files.csv"')
         os.system(f' bsub -w"post_done(merge)" rm -f Filtered_nano_bam_files_*')
 
