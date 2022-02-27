@@ -103,7 +103,8 @@ def main(file, unit):
     # TODO: check if we still need filtering at this point
     snp_ls = pd.read_table('base_called_from_bam_files/finemapped', header=None)[0].tolist()
     print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1']) == False].shape[0], flush=True)
-    print('\nNumber of rows with wrong SNPs: ', all_df[(all_df.filter(regex='covid_snp').isin(snp_ls) == False)].dropna(how='all').shape[0], flush=True)
+    print('\nNumber of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0], flush=True)
+    all_df = all_df[(all_df['covid_snp'].isin(snp_ls))]
     print('\nNumber of duplicated lines: ', all_df[all_df.duplicated(keep=False)].shape[0], flush=True)
     del snp_ls
     all_df = all_df[all_df.duplicated() == False]
