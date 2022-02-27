@@ -1,44 +1,38 @@
 import sys
-import os
-import glob
 import pandas as pd
-sys.path.insert(0, "../Utils")
-from utils import *
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pingouin as pg
-from sklearn.linear_model import LinearRegression
-from scipy.stats import spearmanr
-import numpy as np
-import matplotlib.patches as mpatches
 import socket
-
-if 'Fanny' in socket.gethostname():
-    abs_dir = '/home/fanny/Work/EBI/covid_nanopore'
+import numpy as np
+host = socket.gethostname()
+if 'Fanny' in host:
+    PATH_UTILS = '/home/fanny/Work/EBI/Utils'
+    ABS_PATH = '/home/fanny/Work/EBI/covid_nanopore'
 else:
-    abs_dir = '/nfs/research/birney/users/fanny/covid_nanopore'
+    PATH_UTILS = '/nfs/research/birney/users/fanny/Utils'
+    ABS_PATH = '/nfs/research/birney/users/fanny/covid_nanopore'
+sys.path.insert(0, PATH_UTILS)
+from utils import *
+import argparse
 
-file = f'{abs_dir}/Filtered_nano_bam_files_control_finemapped.csv'
-file_snp = f'{abs_dir}/FROZEN_Nov2021_cpg_snp_analysis/significant_hits_COVID19_HGI_A2_ALL_leave_23andme_20210607.txt'
-dir_out= f'{abs_dir}/FROZEN_Nov2021_cpg_snp_analysis/results_cpg_snp_analysis'
-unit = 'control_snp'
+file = 'Filtered_nano_bam_files_control_finemapped.csv'
+unit='covid_snp'
+
 
 def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0.05):
     if not df.empty:
         stat = Stats(df)
-        try:
-            res_mw = stat.multiple_mann_whitney(measure=measure, var=vars)
-            if not res_mw.empty:
-                if add_col: res_mw[list(add_col.keys())] = list(add_col.values())
-                res_mw[['index', 'p-val', 'cpg', 'data']].dropna(
-                    subset=['p-val']).to_csv(output + 'Mann_Whitney.csv',
-                                             mode='a', header=False, index=False)
-        except Exception as err:
-            print('MWU', err)
+        # try:
+        #     res_mw = stat.multiple_mann_whitney(measure=measure, var=vars)
+        #     if not res_mw.empty:
+        #         if add_col: res_mw[list(add_col.keys())] = list(add_col.values())
+        #         res_mw[['index', 'p-val', 'cpg', 'data']].dropna(
+        #             subset=['p-val']).to_csv(output + 'Mann_Whitney.csv',
+        #                                      mode='a', header=False, index=False)
+        # except Exception as err:
+        #     print('MWU', err)
         try:
             res_sp = stat.Spearman_correlation(measure=measure, var=vars)
             if add_col: res_sp[list(add_col.keys())] = list(add_col.values())
-            res_sp.dropna(subset=['value']).to_csv(output+'Spearmann_corr.csv',
+            res_sp.dropna(subset=['p-val']).to_csv(output+'Spearmann_corr.csv',
                                                 mode='a', header=False, index=False)
         except Exception as err:
             print('SP', err)
@@ -53,8 +47,11 @@ def count_and_mean_values(df, vars, mean_measure):
     return count_mean
 
 
-def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/0', '0/1', '1/1'], cpg_ls=[]):
+def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls=[]):
     # TODO: Include automatic selection of the cpg of interest?
+    # df = median_df.copy()
+    # output=''
+
     if not cpg_ls:
         cpg_ls = df['cpg'].unique()
     count_cols = ['0/0', '0/1', '1/1', 'alt', 'ref', 'Mild', 'Severe', 'means_ref-alt']
@@ -66,28 +63,31 @@ def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/0', '0/1', 
             pd.DataFrame(columns=count_cols).to_csv(f'{output}Counts_Diff_means.csv', mode='w', header=True, index=False)
 
         samp = df[df['cpg'] == cpg].copy()
+        samp = samp[samp.drop(unit, axis=1).duplicated() == False]
+        if (samp.shape[0] > 1):
+            if not np.isnan(samp['log_lik_ratio'].std()) or (samp['log_lik_ratio'].std() == 0):
 
-        # Counts
-        count_mean = count_and_mean_values(samp, mean_measure='log_lik_ratio', vars=['Genotype', 'phenotype', 'haplotype'])
-        count_mean = pd.DataFrame(count_mean, columns=[cpg], index=count_cols).T
-        count_mean.reset_index().to_csv(f'{output}Counts_Diff_means.csv', mode='a', index=False, header=False)
+                # Counts
+                count_mean = count_and_mean_values(samp, mean_measure='log_lik_ratio', vars=['Genotype', 'phenotype', 'haplotype'])
+                count_mean = pd.DataFrame(count_mean, columns=[cpg], index=count_cols).T
+                count_mean.reset_index().to_csv(f'{output}Counts_Diff_means.csv', mode='a', index=False, header=False)
 
-        # Mann Whitney & Spearman tests
-        MannWhitney_Spearman_stats(samp, measure='log_lik_ratio' ,
-            vars=['Genotype', 'phenotype'], output=output, add_col={'cpg': cpg,
-                                                                    'data': 'ALL'})
-        for phen in phen_ls:
-            MannWhitney_Spearman_stats(samp[samp['phenotype'] == phen], measure='log_lik_ratio',
-                vars=['haplotype', 'Genotype'], output=output, add_col={'cpg': cpg,
-                                                                  'data': phen})
-        for gen in gen_ls:
-            MannWhitney_Spearman_stats(samp[samp['Genotype'] == gen], measure='log_lik_ratio' ,
-                vars=['haplotype', 'phenotype'], output=output, add_col={'cpg': cpg,
-                                                                   'data': gen})
+                # Mann Whitney & Spearman tests
+                MannWhitney_Spearman_stats(samp, measure='log_lik_ratio' ,
+                    vars=['Genotype', 'phenotype'], output=output, add_col={'cpg': cpg,
+                                                                            'data': 'ALL'})
+                for phen in phen_ls:
+                    MannWhitney_Spearman_stats(samp[samp['phenotype'] == phen], measure='log_lik_ratio',
+                        vars=['haplotype', 'Genotype'], output=output, add_col={'cpg': cpg,
+                                                                          'data': phen})
+                for gen in gen_ls:
+                    MannWhitney_Spearman_stats(samp[samp['Genotype'] == gen], measure='log_lik_ratio',
+                        vars=['haplotype', 'phenotype'], output=output, add_col={'cpg': cpg,
+                                                                           'data': gen})
 
 
 # MAIN
-def main(file, unit, dir_out=''):
+def main(file, unit):
 
     # TODO: Automation of the path management (in, out, frozen etc)
     # TODO: Include title in the MAIN
@@ -101,14 +101,11 @@ def main(file, unit, dir_out=''):
     all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
 
     # TODO: check if we still need filtering at this point
-    colnames_basefile = ['sample_id', 'control_snp', 'covid_snp',
-                         'control_snp_rs', 'covid_snp_rs', 'read_name', 'base_called']
-    snp_ls = pd.read_table('base_called_from_bam_files/finemapped_controls_bases_at_snps_10012022.txt', header=None, names=colnames_basefile)[unit].unique()
-    gen_ls = ['0/0', '0/1', '1/1']
-    print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(gen_ls) == False].shape[0], flush=True)
-    print('\nNumber of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0], flush=True)
+    snp_ls = pd.read_table('base_called_from_bam_files/finemapped', header=None)[0].tolist()
+    print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1']) == False].shape[0], flush=True)
+    print('\nNumber of rows with wrong SNPs: ', all_df[(all_df.filter(regex='covid_snp').isin(snp_ls) == False)].dropna(how='all').shape[0], flush=True)
     print('\nNumber of duplicated lines: ', all_df[all_df.duplicated(keep=False)].shape[0], flush=True)
-    del snp_ls, gen_ls
+    del snp_ls
     all_df = all_df[all_df.duplicated() == False]
     all_df['log_lik_ratio'] = all_df['log_lik_ratio'].astype(float)
 
@@ -120,20 +117,31 @@ def main(file, unit, dir_out=''):
     # Median over the read_name with same Allele calling
     # QUESTION: Before doing the median, should we delete the cpgs/snps with not enough counts for one file ?
     median_df = all_df.groupby(['phenotype', 'sample_id', 'chromosome', 'cpg',
-                                unit, 'Genotype', 'haplotype']).median().reset_index()
+                                    unit, 'Genotype', 'haplotype']).median().reset_index()
     del all_df
     median_df = median_df.sort_values(by=['haplotype'], ascending=False)
     median_df = median_df.sort_values(by=['chromosome', unit, 'Genotype', 'phenotype'])
 
     # Filter
-    snp_counts = median_df.groupby([unit, 'Genotype']).size().unstack()
-    cpg_counts = median_df.groupby(['cpg', unit, 'Genotype']).size().unstack()
-    cpg_counts_10 = cpg_counts[cpg_counts > 10].dropna(how= 'all').index.levels[0]
-    Loop_stats(median_df)
+    # snp_counts = median_df.groupby([unit, 'Genotype']).size().unstack()
+    # cpg_counts = median_df.groupby(['cpg', unit, 'Genotype']).size().unstack()
+    # cpg_counts_10 = cpg_counts[cpg_counts > 10].dropna(how= 'all').index.levels[0]
+    Loop_stats(median_df, gen_ls=['0/1'])
 
 
 if __name__ == '__main__':
     main(file, unit)
+    # parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
+    #     + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
+    # parser.add_argument('filtered_file', type=str, help='basecalling file')
+    # parser.add_argument('-u', '--unit', type=str, default='cpg',
+    #                     help='unit to perform analysis')
+    # parser.add_argument('-g', '--gen_ls', type=str, default='0/1',
+    #                     help='list of genotypes to perform specific analysis on')
+    # parser.add_argument('-p', '--phen_ls', type=str, default='Mild-Severe',
+    #                     help='list of phenotypes to perform specific analysis on')
+    # args = parser.parse_args()
+    # main(**vars(args))
 
 
 def joint_model():
