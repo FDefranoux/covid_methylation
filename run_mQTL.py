@@ -114,8 +114,8 @@ def main(yaml_file, steps='all'):
         os.chdir(temp_dir)
         for n, (nano, base_call) in enumerate(zip(nano_files, basecal_files)):
             assert os.path.basename(base_call).split('.')[0] == os.path.basename(nano).split('.')[0], f'The files are not corresponding {base_call, nano}'
-            print(n, base_call, nano, mem, flush=True)
             mem = find_mem_request(nano=nano, base=base_call)
+            print(n, base_call, nano, mem, flush=True)
             os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
 
             # Open the output and rerun all the LSF memory errors
