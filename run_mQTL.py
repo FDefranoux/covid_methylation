@@ -61,6 +61,7 @@ def select_SNP_per_pvalue(file, pval_col, dist_bp=500000):
 def find_mem_request(nano, base):
     nano_size = os.path.getsize(nano) / 1000000
     base_size = os.path.getsize(base)
+    print(nano, nano_size, base, base_size)
     if (nano_size < 1) or (base_size < 1):
         mem = 5000
     else:
@@ -114,12 +115,17 @@ def main(yaml_file, steps='all'):
         for n, (base_call, nano) in enumerate(zip(nano_files, basecal_files)):
             print(n, base_call, nano, flush=True)
             assert os.path.basename(base_call).split('.')[0] == os.path.basename(nano).split('.')[0], f'The files are not corresponding {base_call, nano}'
-            mem = find_mem_request(nano, base_call)
-            os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
+            mem = find_mem_request(nano=nano, base=base_call)
+            print(mem, flush=True)
+            # os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
+            #
+            # # Open the output and rerun all the LSF memory errors
+            # rerun_more_mem = f'bsub -Jbamnano{n}_rerun -M{mem + 5000} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
+            # os.system(f'bsub -w"done(bamnano{n})" -Jbamnano{n}_verif python3 quality_analysis.py bamnano{n}.out {rerun_more_mem}')
 
-            # Open the output and rerun all the LSF memory errors
-            rerun_more_mem = f'bsub -Jbamnano{n} -M{mem + 5000} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
-            os.system(f'bsub -w"done(bamnano{n}_verif)" -Jbamnano{n} python3 quality_analysis.py bamnano{n}.out {rerun_more_mem}')
+
+        #TODO: Problem with memory !
+        # PB: gre names --> where are the files ???
 
         # Merging all files together
         # first = os.path.basename(basecal_files[0]).split('.')[0]
