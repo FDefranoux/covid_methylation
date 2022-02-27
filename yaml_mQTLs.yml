@@ -9,7 +9,8 @@ command: python3 run_mQTL.py yaml_mQTLs.yml
 
 # other:
 #   output_directory: /nfs/research/birney/users/fanny/covid_nanopore/test
-#   basecalling_directory: /hps/nobackup/birney/projects/gel_methylation/control_snps/reads/gcc0085*
+# #   basecalling_directory: /nfs/research/birney/users/fanny/covid_nanopore/control_snps/gcc0085*
+#   basecalling_directory: /nfs/research/birney/users/fanny/covid_nanopore/covid_snps/gcc0085*
 #   nanopolish_directory: /hps/nobackup/birney/projects/gel_methylation/nanopolish/gcc0085*
 #   snp_type: covid_snp
 #   finemapping: False
