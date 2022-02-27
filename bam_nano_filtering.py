@@ -115,9 +115,9 @@ def grep_target_readnames(nano_file, list_readnames, control=True):
     return f'{out_file}_greped.txt'
 
 
-def nanopolish_formatting(nanopolish_file, list_readnames, **kwargs):
+def nanopolish_formatting(nanopolish_file, list_readnames, control=True):
     # Recuperation of the read names and grepping nanopolish file
-    greped_nano = grep_target_readnames(nanopolish_file, list_readnames, **kwargs)
+    greped_nano = grep_target_readnames(nanopolish_file, list_readnames, control=control)
 
     # Reading and formatting nanopolish file
     nano = pd.read_table(greped_nano, dtype='object')
@@ -137,7 +137,7 @@ def merge_basefile_and_nanofile(basecalling_file, nanopolish_file, target_snp):
     called_base_df = genotype_frombasecalling(basecalling_file, target_snp, t=0.90, print_counts=False, filtering=True)
 
     # Selecting readnames of interest from nanopolish file+formatting the table
-    nano_df = nanopolish_formatting(nanopolish_file, list(called_base_df['read_name'].unique()), kwargs={'control': True})
+    nano_df = nanopolish_formatting(nanopolish_file, list(called_base_df['read_name'].unique()), control=True)
 
     # Merging nanopolish file with basecalling file
     merge = pd.merge(nano_df, called_base_df, on=['chromosome', 'read_name', 'sample_id'],
