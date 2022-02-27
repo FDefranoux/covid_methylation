@@ -112,26 +112,21 @@ def main(yaml_file, steps='all'):
         print('# STEP1')
         # Bam-basecalling file genotyped/filtered/merged with corresponding nanopolish file
         os.chdir(temp_dir)
-        for n, (base_call, nano) in enumerate(zip(nano_files, basecal_files)):
-            print(n, base_call, nano, flush=True)
+        for n, (nano, base_call) in enumerate(zip(nano_files, basecal_files)):
             assert os.path.basename(base_call).split('.')[0] == os.path.basename(nano).split('.')[0], f'The files are not corresponding {base_call, nano}'
+            print(n, base_call, nano, mem, flush=True)
             mem = find_mem_request(nano=nano, base=base_call)
-            print(mem, flush=True)
-            # os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
-            #
-            # # Open the output and rerun all the LSF memory errors
-            # rerun_more_mem = f'bsub -Jbamnano{n}_rerun -M{mem + 5000} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
-            # os.system(f'bsub -w"done(bamnano{n})" -Jbamnano{n}_verif python3 quality_analysis.py bamnano{n}.out {rerun_more_mem}')
+            os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
 
-
-        #TODO: Problem with memory !
-        # PB: gre names --> where are the files ???
+            # Open the output and rerun all the LSF memory errors
+            rerun_more_mem = f'bsub -Jbamnano{n}_rerun -M{mem + 5000} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
+            os.system(f'bsub -w"done(bamnano{n})" -Jbamnano{n}_verif python3 quality_analysis.py bamnano{n}.out {rerun_more_mem}')
 
         # Merging all files together
-        # first = os.path.basename(basecal_files[0]).split('.')[0]
-        # os.system(f'bsub -w"done(bamnano0)" -Jhead -e /dev/null -o /dev/null "head -n1 Filtered_nano_bam_files_{first}.csv > ../Filtered_nano_bam_files.csv"')
-        # os.system(f'bsub -w"done(bamnano*)" -Jmerge -emerge.out -omerge.out "tail -n+2 -q Filtered_nano_bam_files_* >> ../Filtered_nano_bam_files.csv"')
-        # os.system(f' bsub -w"post_done(merge)" rm -f Filtered_nano_bam_files_*')
+        first = os.path.basename(basecal_files[0]).split('.')[0]
+        os.system(f'bsub -w"done(bamnano0)" -Jhead -e /dev/null -o /dev/null "head -n1 Filtered_nano_bam_files_{first}.csv > ../Filtered_nano_bam_files.csv"')
+        os.system(f'bsub -w"done(bamnano*)" -Jmerge -emerge.out -omerge.out "tail -n+2 -q Filtered_nano_bam_files_* >> ../Filtered_nano_bam_files.csv"')
+        os.system(f' bsub -w"post_done(merge)" rm -f Filtered_nano_bam_files_*')
 
     if ('2' in steps) or ('all' in steps):
         print('# STEP2')
