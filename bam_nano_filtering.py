@@ -89,11 +89,11 @@ def grep_target_readnames(nano_file, list_readnames, control=True):
 
     # Extraction of the lines from raw nanopolish file with corresponding readnames
     os.system(f'zcat {nano_file} | head -n 1 > {out_file}_greped.txt')
-    os.system(f'zcat {nano_file} | grep -f {out_file}_readnames.temp) >> {out_file}_greped.txt')
+    os.system(f'zcat {nano_file} | grep -f {out_file}_readnames.temp >> {out_file}_greped.txt')
     if control:
         # TODO: Call or redo Tom's script to count the readnames per chromosome instead of total?
         os.system(
-            f'grep -v -f {out_file}_readnames.temp) {out_file}_greped.txt > {out_file}_notrecognized_readnames.txt')
+            f'grep -v -f {out_file}_readnames.temp {out_file}_greped.txt > {out_file}_notrecognized_readnames.txt')
     os.remove(f'{out_file}_readnames.temp')
 
     # Recuperating the lines contaning extra fields:
