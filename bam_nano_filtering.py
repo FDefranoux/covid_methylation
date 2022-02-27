@@ -9,7 +9,7 @@ import argparse
 
 ## For manipulation of the BAM_base_calling_files
 def genotype_frombasecalling(file, target_snp, t=0.90, print_counts=False, filtering=True, **kwargs):
-    df = pd.read_table(file, header=None, dtype='object')
+    df = pd.read_table(file, dtype='object')
     df[['chromosome', 'pos', 'ref', 'alt']
        ] = df[target_snp].str.split(':', expand=True)
 
@@ -80,6 +80,7 @@ def filtering_datas(df):
 
 ## For manipulation of the nanopolish file
 def grep_target_readnames(nano_file, list_readnames, control=True):
+    print('GREP READNAMES STEP!!')
     out_file = os.path.basename(nano_file).split('.')[0]
     # Saving the read_names in temp file
     with open(f'{out_file}_readnames.temp', 'w') as f:

@@ -5,13 +5,13 @@ import argparse
 import pandas as pd
 host = socket.gethostname()
 if 'Fanny' in host:
-    path_utils = '/home/fanny/Work/EBI/Utils'
+    PATH_UTILS = '/home/fanny/Work/EBI/Utils'
     ABS_PATH = '/home/fanny/Work/EBI/covid_nanopore'
 else:
-    path_utils = '/nfs/research/birney/users/fanny/Utils'
+    PATH_UTILS = '/nfs/research/birney/users/fanny/Utils'
     ABS_PATH = '/nfs/research/birney/users/fanny/covid_nanopore'
 
-sys.path.insert(0, path_utils)
+sys.path.insert(0, PATH_UTILS)
 from utils import *
 import time
 import re
@@ -120,7 +120,9 @@ def main(yaml_file, steps='all'):
 
             # Open the output and rerun all the LSF memory errors
             rerun_more_mem = f'bsub -Jbamnano{n}_rerun -M{mem + 5000} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
-            os.system(f'bsub -w"done(bamnano{n})" -Jbamnano{n}_verif python3 quality_analysis.py bamnano{n}.out {rerun_more_mem}')
+            os.system(f'bsub -w"done(bamnano{n})" -Jbamnano{n}_verif python3 -ebamnano{n}.out -obamnano{n}.out {ABS_PATH}/quality_analysis.py bamnano{n}.out {rerun_more_mem}')
+
+        # NOTE: bamnano return error because there is not columns names in the bambasecalling files
 
         # Merging all files together
         first = os.path.basename(basecal_files[0]).split('.')[0]

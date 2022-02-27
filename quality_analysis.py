@@ -1,3 +1,6 @@
+import os
+import argparse
+
 def verification_bsub_output(file, rerun_command='', add_comment=''):
     with open(file, 'r') as f:
         out = f.readlines()
