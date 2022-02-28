@@ -99,7 +99,7 @@ def main(file_ls, unit):
     file = lsf_arrray(file_ls)
 
     # Opening file
-    all_df = pd.read_csv(file, dtype='object')
+    all_df = pd.read_csv(file, dtype='object', header=None, names=['chromosome','strand','start','end','read_name','log_lik_ratio','log_lik_methylated','log_lik_unmethylated','num_calling_strands','num_motifs','sequence','sample_id','control_snp','covid_snp','control_snp_rs','covid_snp_rs','base_called','pos','ref','alt','haplotype','Allele1','Allele2','Genotype','phenotype','cpg','distance_cpg_snp'])
     # TODO ERASE:
     all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
 
