@@ -13,7 +13,7 @@ sys.path.insert(0, PATH_UTILS)
 from utils import *
 import argparse
 
-file = 'Filtered_nano_bam_files_control_finemapped.csv'
+file = 'Filtered_finemapped.csv'
 unit='covid_snp'
 
 
