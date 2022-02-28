@@ -14,7 +14,7 @@ from utils import *
 import argparse
 
 file_ls = 'Filtered_finemapped.csv*.csv'
-unit='covid_snp'
+unit='control_snp'
 import glob
 
 
@@ -33,7 +33,7 @@ def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0
         try:
             res_sp = stat.Spearman_correlation(measure=measure, var=vars)
             if add_col: res_sp[list(add_col.keys())] = list(add_col.values())
-            res_sp.dropna(subset=['p-val']).to_csv(output+'Spearmann_corr.csv',
+            res_sp.dropna(subset=['p-val']).reset_index().to_csv(output+'Spearmann_corr.csv',
                                                 mode='a', header=False, index=False)
         except Exception as err:
             print('SP', err)
@@ -95,9 +95,9 @@ def main(file_ls, unit):
     # if not os.path.exists(dir_out):
     #     os.makedirs(dir_out)
     file_ls = glob.glob(file_ls)
-    print(file_ls)
+    # print(file_ls)
     file = lsf_arrray(file_ls)
-
+    # file = 'Filtered_finemapped.csv10.csv'
     # Opening file
     all_df = pd.read_csv(file, dtype='object', header=None, names=['chromosome','strand','start','end','read_name','log_lik_ratio','log_lik_methylated','log_lik_unmethylated','num_calling_strands','num_motifs','sequence','sample_id','control_snp','covid_snp','control_snp_rs','covid_snp_rs','base_called','pos','ref','alt','haplotype','Allele1','Allele2','Genotype','phenotype','cpg','distance_cpg_snp'])
     # TODO ERASE:
