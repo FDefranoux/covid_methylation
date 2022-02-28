@@ -13,8 +13,9 @@ sys.path.insert(0, PATH_UTILS)
 from utils import *
 import argparse
 
-file = 'Filtered_finemapped.csv'
+file_ls = 'Filtered_finemapped.csv*.csv'
 unit='covid_snp'
+import glob
 
 
 def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0.05):
@@ -51,7 +52,6 @@ def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls
     # TODO: Include automatic selection of the cpg of interest?
     # df = median_df.copy()
     # output=''
-
     if not cpg_ls:
         cpg_ls = df['cpg'].unique()
     count_cols = ['0/0', '0/1', '1/1', 'alt', 'ref', 'Mild', 'Severe', 'means_ref-alt']
@@ -87,13 +87,16 @@ def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls
 
 
 # MAIN
-def main(file, unit):
+def main(file_ls, unit):
 
     # TODO: Automation of the path management (in, out, frozen etc)
     # TODO: Include title in the MAIN
     # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
     # if not os.path.exists(dir_out):
     #     os.makedirs(dir_out)
+    file_ls = glob.glob(file_ls)
+    print(file_ls)
+    file = lsf_arrray(file_ls)
 
     # Opening file
     all_df = pd.read_csv(file, dtype='object')
@@ -127,11 +130,11 @@ def main(file, unit):
     # snp_counts = median_df.groupby([unit, 'Genotype']).size().unstack()
     # cpg_counts = median_df.groupby(['cpg', unit, 'Genotype']).size().unstack()
     # cpg_counts_10 = cpg_counts[cpg_counts > 10].dropna(how= 'all').index.levels[0]
-    Loop_stats(median_df, gen_ls=['0/1'])
+    Loop_stats(median_df, gen_ls=['0/1'], output=f'{os.path.basename(file)[:-4]}_')
 
 
 if __name__ == '__main__':
-    main(file, unit)
+    main(file_ls, unit)
     # parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
     #     + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
     # parser.add_argument('filtered_file', type=str, help='basecalling file')
