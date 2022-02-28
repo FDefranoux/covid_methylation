@@ -21,15 +21,15 @@ import glob
 def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0.05):
     if not df.empty:
         stat = Stats(df)
-        # try:
-        #     res_mw = stat.multiple_mann_whitney(measure=measure, var=vars)
-        #     if not res_mw.empty:
-        #         if add_col: res_mw[list(add_col.keys())] = list(add_col.values())
-        #         res_mw[['index', 'p-val', 'cpg', 'data']].dropna(
-        #             subset=['p-val']).to_csv(output + 'Mann_Whitney.csv',
-        #                                      mode='a', header=False, index=False)
-        # except Exception as err:
-        #     print('MWU', err)
+        try:
+            res_mw = stat.multiple_mann_whitney(measure=measure, var=vars)
+            if not res_mw.empty:
+                if add_col: res_mw[list(add_col.keys())] = list(add_col.values())
+                res_mw[['index', 'p-val', 'cpg', 'data']].dropna(
+                    subset=['p-val']).to_csv(output + 'Mann_Whitney.csv',
+                                             mode='a', header=False, index=False)
+        except Exception as err:
+            print('MWU', err)
         try:
             res_sp = stat.Spearman_correlation(measure=measure, var=vars)
             if add_col: res_sp[list(add_col.keys())] = list(add_col.values())
@@ -59,7 +59,7 @@ def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls
 
         if cpg == cpg_ls[0]:
             pd.DataFrame(columns=['index', 'p-val', 'cpg', 'data']).to_csv(output + 'Mann_Whitney.csv', mode='w', index=False)
-            pd.DataFrame(columns=['index', 'variable', 'value', 'cpg', 'data']).to_csv(output + 'Spearmann_corr.csv', mode='w', index=False)
+            pd.DataFrame(columns=['index', 'rho', 'p-val', 'cpg', 'data']).to_csv(output + 'Spearmann_corr.csv', mode='w', index=False)
             pd.DataFrame(columns=count_cols).to_csv(f'{output}Counts_Diff_means.csv', mode='w', header=True, index=False)
 
         samp = df[df['cpg'] == cpg].copy()
@@ -95,7 +95,7 @@ def main(file_ls, unit):
     # if not os.path.exists(dir_out):
     #     os.makedirs(dir_out)
     file_ls = glob.glob(file_ls)
-    # print(file_ls)
+    # # print(file_ls)
     file = lsf_arrray(file_ls)
     # file = 'Filtered_finemapped.csv10.csv'
     # Opening file
