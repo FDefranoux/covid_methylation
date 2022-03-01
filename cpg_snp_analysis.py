@@ -19,8 +19,8 @@ import glob
 
 
 def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0.05):
-    # if not df.empty:
-    #     stat = Stats(df)
+    if not df.empty:
+        stat = Stats(df)
     #     try:
     #         res_mw = stat.multiple_mann_whitney(measure=measure, var=vars)
     #         if not res_mw.empty:
@@ -104,7 +104,7 @@ def main(file_ls, unit):
     all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
 
     # TODO: check if we still need filtering at this point
-    snp_ls = pd.read_table('base_called_from_bam_files/finemapped', header=None)[0].tolist()
+    snp_ls = pd.read_table('finemapped', header=None)[0].tolist()
     print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1']) == False].shape[0], flush=True)
     print('\nNumber of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0], flush=True)
     all_df = all_df[(all_df['covid_snp'].isin(snp_ls))]
