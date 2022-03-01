@@ -19,17 +19,17 @@ import glob
 
 
 def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0.05):
-    if not df.empty:
-        stat = Stats(df)
-        try:
-            res_mw = stat.multiple_mann_whitney(measure=measure, var=vars)
-            if not res_mw.empty:
-                if add_col: res_mw[list(add_col.keys())] = list(add_col.values())
-                res_mw[['index', 'p-val', 'cpg', 'data']].dropna(
-                    subset=['p-val']).to_csv(output + 'Mann_Whitney.csv',
-                                             mode='a', header=False, index=False)
-        except Exception as err:
-            print('MWU', err)
+    # if not df.empty:
+    #     stat = Stats(df)
+    #     try:
+    #         res_mw = stat.multiple_mann_whitney(measure=measure, var=vars)
+    #         if not res_mw.empty:
+    #             if add_col: res_mw[list(add_col.keys())] = list(add_col.values())
+    #             res_mw[['index', 'p-val', 'cpg', 'data']].dropna(
+    #                 subset=['p-val']).to_csv(output + 'Mann_Whitney.csv',
+    #                                          mode='a', header=False, index=False)
+    #     except Exception as err:
+    #         print('MWU', err)
         try:
             res_sp = stat.Spearman_correlation(measure=measure, var=vars)
             if add_col: res_sp[list(add_col.keys())] = list(add_col.values())
