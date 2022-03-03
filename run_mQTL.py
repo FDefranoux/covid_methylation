@@ -121,7 +121,7 @@ def main(yaml_file, steps='all'):
 
             # Open the output and rerun all the LSF memory errors
             rerun_more_mem = f'bsub -Jbamnano_{n}_rerun -M{mem + 5000} -ebamnano_{file_title}.out -obamnano_{file_title}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
-            os.system(f'bsub -w"post_done(bamnano_{n})" -Jbamnano{n}_verif python3 -ebamnano_{file_title}.out -obamnano_{file_title}.out {ABS_PATH}/quality_analysis.py bamnano_{file_title}.out {rerun_more_mem}')
+            os.system(f'bsub -w"post_done(bamnano{n})" -Jbamnano{n}_verif python3 -ebamnano_{file_title}.out -obamnano_{file_title}.out {ABS_PATH}/quality_analysis.py bamnano_{file_title}.out {rerun_more_mem}')
 
         # NOTE: bamnano return error because there is not columns names in the bambasecalling files
 
