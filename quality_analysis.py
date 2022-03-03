@@ -17,7 +17,7 @@ def verification_bsub_output(file, rerun_command='', add_comment=''):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Verification bsub outputs')
-    parser.add_argument('--file', type=str, help='output file')
+    parser.add_argument('file', type=str, help='output file')
     parser.add_argument('-r', '--rerun_command', type=str, help='Rerun command in case of LSF shortage')
     parser.add_argument('-a', '--add_comment', type=str, help='Additional comment')
     args = parser.parse_args()
