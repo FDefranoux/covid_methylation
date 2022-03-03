@@ -1,4 +1,5 @@
 import sys
+import os
 import pandas as pd
 import socket
 import numpy as np
@@ -15,7 +16,6 @@ import argparse
 
 file_ls = 'Filtered_finemapped.csv*.csv'
 unit='control_snp'
-import glob
 
 
 def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0.05):
@@ -87,25 +87,21 @@ def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls
 
 
 # MAIN
-def main(file_ls, unit):
+def main(filtered_file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'Severe']):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-    # TODO: Automation of the path management (in, out, frozen etc)
-    # TODO: Include title in the MAIN
-    # TODO: Analysis with yaml software, moved in the result folder (with date and info for analysis)
-    # if not os.path.exists(dir_out):
-    #     os.makedirs(dir_out)
-    file_ls = glob.glob(file_ls)
-    # # print(file_ls)
-    file = lsf_arrray(file_ls)
-    # file = 'Filtered_finemapped.csv10.csv'
     # Opening file
-    all_df = pd.read_csv(file, dtype='object', header=None, names=['chromosome','strand','start','end','read_name','log_lik_ratio','log_lik_methylated','log_lik_unmethylated','num_calling_strands','num_motifs','sequence','sample_id','control_snp','covid_snp','control_snp_rs','covid_snp_rs','base_called','pos','ref','alt','haplotype','Allele1','Allele2','Genotype','phenotype','cpg','distance_cpg_snp'])
-    # TODO ERASE:
-    all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
+    file_ls = directory_to_file_list(filtered_file)
+    file = lsf_arrray(file_ls)
+    all_df = pd.read_csv(file, dtype='object')
 
-    # TODO: check if we still need filtering at this point
-    snp_ls = pd.read_table('finemapped', header=None)[0].tolist()
+    # TODO ERASE ???:
+    print('Colnames in df: ', all_df[(all_df == all_df.columns)].dropna(how='all').shape[0], flush=True)
+    all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
     print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1']) == False].shape[0], flush=True)
+    all_df = all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1'])]
+    snp_ls = pd.read_table('finemapped', header=None)[0].tolist()
     print('\nNumber of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0], flush=True)
     all_df = all_df[(all_df['covid_snp'].isin(snp_ls))]
     print('\nNumber of duplicated lines: ', all_df[all_df.duplicated(keep=False)].shape[0], flush=True)
@@ -130,22 +126,24 @@ def main(file_ls, unit):
     # snp_counts = median_df.groupby([unit, 'Genotype']).size().unstack()
     # cpg_counts = median_df.groupby(['cpg', unit, 'Genotype']).size().unstack()
     # cpg_counts_10 = cpg_counts[cpg_counts > 10].dropna(how= 'all').index.levels[0]
-    Loop_stats(median_df, gen_ls=['0/1'], output=f'{os.path.basename(file)[:-4]}_')
+    Loop_stats(median_df, gen_ls=gen_ls, phen_ls=phen_ls, output=f'{os.path.join(output_dir, os.path.basename(file)[:-4])}_')
 
 
 if __name__ == '__main__':
-    main(file_ls, unit)
-    # parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
-    #     + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
-    # parser.add_argument('filtered_file', type=str, help='basecalling file')
-    # parser.add_argument('-u', '--unit', type=str, default='cpg',
-    #                     help='unit to perform analysis')
-    # parser.add_argument('-g', '--gen_ls', type=str, default='0/1',
-    #                     help='list of genotypes to perform specific analysis on')
-    # parser.add_argument('-p', '--phen_ls', type=str, default='Mild-Severe',
-    #                     help='list of phenotypes to perform specific analysis on')
-    # args = parser.parse_args()
-    # main(**vars(args))
+    # main(file_ls, unit)
+    parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
+        + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
+    parser.add_argument('filtered_file', type=str, help='basecalling file')
+    parser.add_argument('-o', '--output_dir', type=str, default='',
+                        help='directory to save output files')
+    parser.add_argument('-u', '--unit', type=str, default='cpg',
+                        help='unit to perform analysis')
+    parser.add_argument('-g', '--gen_ls', type=str, default='0/1',
+                        help='list of genotypes to perform specific analysis on')
+    parser.add_argument('-p', '--phen_ls', type=str, default='Mild-Severe',
+                        help='list of phenotypes to perform specific analysis on')
+    args = parser.parse_args()
+    main(**vars(args))
 
 
 def joint_model():
