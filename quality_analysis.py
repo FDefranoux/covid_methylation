@@ -2,6 +2,7 @@ import os
 import argparse
 
 def verification_bsub_output(file, rerun_command='', add_comment=''):
+    print('QUALITY ANALYSIS')
     with open(file, 'r') as f:
         out = f.readlines()
     if 'Successfully completed' in out:
