@@ -114,13 +114,14 @@ def main(yaml_file, steps='all'):
         os.chdir(temp_dir)
         for n, (nano, base_call) in enumerate(zip(nano_files, basecal_files)):
             assert os.path.basename(base_call).split('.')[0] == os.path.basename(nano).split('.')[0], f'The files are not corresponding {base_call, nano}'
+            file_title = os.path.basename(base_call).split('.')[0]
             mem = find_mem_request(nano=nano, base=base_call)
             print(n, base_call, nano, mem, flush=True)
-            os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
+            os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano_{file_title}.out -obamnano_{file_title}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
 
             # Open the output and rerun all the LSF memory errors
-            rerun_more_mem = f'bsub -Jbamnano{n}_rerun -M{mem + 5000} -ebamnano{n}.out -obamnano{n}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
-            os.system(f'bsub -w"done(bamnano{n})" -Jbamnano{n}_verif python3 -ebamnano{n}.out -obamnano{n}.out {ABS_PATH}/quality_analysis.py bamnano{n}.out {rerun_more_mem}')
+            rerun_more_mem = f'bsub -Jbamnano_{n}_rerun -M{mem + 5000} -ebamnano_{file_title}.out -obamnano_{file_title}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
+            os.system(f'bsub -w"done(bamnano_{n})" -Jbamnano{n}_verif python3 -ebamnano_{file_title}.out -obamnano_{file_title}.out {ABS_PATH}/quality_analysis.py bamnano_{file_title}.out {rerun_more_mem}')
 
         # NOTE: bamnano return error because there is not columns names in the bambasecalling files
 

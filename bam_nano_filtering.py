@@ -97,7 +97,7 @@ def grep_target_readnames(nano_file, list_readnames, control=True):
     os.remove(f'{out_file}_readnames.temp')
 
     # Recuperating the lines contaning extra fields:
-    os.system(f'cut -f12,13,14,15,16,17,18,19,20 {out_file}_greped.txt > {out_file} _extracols.txt')
+    os.system(f'cut -f12,13,14,15,16,17,18,19,20 {out_file}_greped.txt > {out_file}_extracols.txt')
     os.system(f'sed -i "/^[[:space:]]*$/d" {out_file}_extracols.txt') # del blank lines
     line_extracols = len(open(out_file + "_extracols.txt").readlines())
     if line_extracols != 0:
@@ -126,8 +126,6 @@ def nanopolish_formatting(nanopolish_file, list_readnames, control=True):
     nano.loc[nano['sample_id'].str.contains('PROM1') == False, 'phenotype'] = 'Mild'
     nano['cpg'] = nano['chromosome'].astype(str) + ':' + nano['start'].astype(
         str) + ':' + nano['num_motifs'].astype(str)
-    nano.loc[nano['num_motifs'] == 1, 'distance_cpg_snp'] = abs(
-        nano['pos'].astype(int) - nano['start'].astype(int))
     return nano
 
 
