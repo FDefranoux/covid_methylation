@@ -119,21 +119,18 @@ def main(yaml_file, steps='all'):
             print(n, base_call, nano, mem, flush=True)
             os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano_{file_title}.out -obamnano_{file_title}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
 
-            # Open the output and rerun all the LSF memory errors
-            rerun_more_mem = f'bsub -Jbamnano_{n}_rerun -M{mem + 5000} -ebamnano_{file_title}.out -obamnano_{file_title}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"'
-            os.system(f'bsub -w"post_done(bamnano{n})" -Jbamnano{n}_verif -everif_{file_title}.out -overif_{file_title}.out "python3 {ABS_PATH}/quality_analysis.py bamnano_{file_title}.out {rerun_more_mem}"')
-
         # Merging all files together
         first = os.path.basename(basecal_files[0]).split('.')[0]
         os.system(f'bsub -w"done(bamnano0)" -Jhead -e /dev/null -o /dev/null "head -n1 Filtered_nano_bam_files_{first}.csv > ../Filtered_nano_bam_files.csv"')
-        os.system('bsub -w"done(bamnano*)" -Jmerge -emerge.out -omerge.out "tail -n+2 -q Filtered_nano_bam_files_* >> ../Filtered_nano_bam_files.csv"')
-        os.system('bsub -w"done(merge)" -Jrm rm -f Filtered_nano_bam_files_*')
+        os.system('bsub -w"post_done(bamnano*)" -Jverif -e /dev/null -o /dev/null "grep LSBATCH bamnano_*.out -A4 | grep -v LSBATCH | grep -v python3 > SUMMARY.out"')
+        os.system('bsub -w"done(bamnano*)" -M1000 -Jmerge -emerge.out -omerge.out "tail -n+2 -q Filtered_nano_bam_files_* >> ../Filtered_nano_bam_files.csv"')
+        os.system('bsub -w"done(merge)" -M1000 -Jrm "rm -f Filtered_nano_bam_files_*"')
 
     if ('2' in steps) or ('all' in steps):
         print('# STEP2')
         # First we need to split the file into chromosomes
-        os.system('bsub -w"done(merge)" -Jsplit -esplit.out -osplit.out bash ../split_filter.sh ../Filtered_nano_bam_files.csv')
-        os.system('bsub -w"done(split)" -Jchr[1-24]_analysis -e%J.out -o%J.out python3 cpg_snp_analysis.py Filtered_finemapped.csv_chr_* -o per_chr')
+        os.system('bsub -w"done(merge)" -M 1000 -Jsplit -esplit.out -osplit.out bash ../split_filter.sh ../Filtered_nano_bam_files.csv')
+        os.system('bsub -w"done(split)" -M 8000 -J"[1-24]_perchr" -e%J.out -o%J.out "python3 cpg_snp_analysis.py Filtered_finemapped.csv_chr_* -o per_chr"')
 
     if ('3' in steps) or ('all' in steps):
         print('# STEP3')
