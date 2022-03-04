@@ -131,14 +131,15 @@ def main(yaml_file, steps='all'):
         # First we need to split the file into chromosomes
         if not os.path.exists('per_chr'):
             os.makedirs('per_chr')
-        os.system(f'bsub -w"done(merge)" -M 1000 -Jsplit -esplit.out -osplit.out bash {ABS_PATH}/split_filter.sh ../Filtered_nano_bam_files.csv per_chr')
+        os.system(f'bsub -w"done(merge)" -M 1000 -Jsplit -esplit.out -osplit.out "bash {ABS_PATH}/split_filter.sh ../Filtered_nano_bam_files.csv per_chr"')
         for chr in range(1,25):
             print(chr)
             os.system(f'bsub -w"done(split)" -M 8000 -Jcpg_{chr} -eper_chr/cpg_{chr}.out -oper_chr/cpg_{chr}.out "python3 {ABS_PATH}/cpg_snp_analysis.py per_chr/Filtered_nano_bam_files.csv_chr_{chr}.csv -oper_chr -u{target_snp}"')
         # TODO implement the merging of the analysis files
         os.system('bsub -w"ended(cpg*)" -Jverifcpg -e/dev/null -o/dev/null "grep LSBATCH per_chr/cpg_*.out -A5 | grep -v LSBATCH | grep -v python3 > per_chr/SUMMARY.out"')
         for file in ['Counts_Diff_means.csv', 'Mann_Whitney.csv', 'Spearmann_corr.csv' ]:
-            os.system(f'bsub -w"done(verifcpg)" -Jmerge{file} -e/dev/null -o/dev/null "head -n1 per_chr/Filtered_nano_bam_files.csv_1_{file} > ../All_{file} ; tail -n+2 -q per_chr/Filtered_nano_bam_files.csv_*{file} >> ../All_{file}')
+            os.system(f'bsub -w"done(verifcpg)" -Jhead{file} -e/dev/null -o/dev/null "head -n1 per_chr/Filtered_nano_bam_files.csv_1_{file} > ../All_{file}"')
+            os.system(f'bsub -w"done(verifcpg)" -M1000 -Jmerge{file} -e/dev/null -o/dev/null "tail -n+2 -q per_chr/Filtered_nano_bam_files.csv_*{file} >> ../All_{file}"')
 
     if ('3' in steps) or ('all' in steps):
         print('# STEP3 -- Not implemented YET')
