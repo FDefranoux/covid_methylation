@@ -39,7 +39,7 @@ def correspondance_list_files(list1, list2, details=True):
         (list1_base & list2_base)]
     if details:
         print('Non corrresponding files: ', (list1_base - list2_base) | (list2_base - list1_base))
-    return list1, list2
+    return sorted(list1), sorted(list2)
 
 
 def select_SNP_per_pvalue(file, pval_col, dist_bp=500000):
