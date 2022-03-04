@@ -122,18 +122,26 @@ def main(yaml_file, steps='all'):
         # Merging all files together
         first = os.path.basename(basecal_files[0]).split('.')[0]
         os.system(f'bsub -w"done(bamnano0)" -Jhead -e /dev/null -o /dev/null "head -n1 Filtered_nano_bam_files_{first}.csv > ../Filtered_nano_bam_files.csv"')
-        os.system('bsub -w"post_done(bamnano*)" -Jverif -e /dev/null -o /dev/null "grep LSBATCH bamnano_*.out -A4 | grep -v LSBATCH | grep -v python3 > SUMMARY.out"')
-        os.system('bsub -w"done(bamnano*)" -M1000 -Jmerge -emerge.out -omerge.out "tail -n+2 -q Filtered_nano_bam_files_* >> ../Filtered_nano_bam_files.csv"')
+        os.system('bsub -w"ended(bamnano*)" -Jverif -e /dev/null -o /dev/null "grep LSBATCH bamnano_*.out -A5 | grep -v LSBATCH | grep -v python3 > SUMMARY.out"')
+        os.system('bsub -w"done(verif)" -M1000 -Jmerge -emerge.out -omerge.out "tail -n+2 -q Filtered_nano_bam_files_* >> ../Filtered_nano_bam_files.csv"')
         os.system('bsub -w"done(merge)" -M1000 -Jrm "rm -f Filtered_nano_bam_files_*"')
 
     if ('2' in steps) or ('all' in steps):
         print('# STEP2')
         # First we need to split the file into chromosomes
-        os.system('bsub -w"done(merge)" -M 1000 -Jsplit -esplit.out -osplit.out bash ../split_filter.sh ../Filtered_nano_bam_files.csv')
-        os.system('bsub -w"done(split)" -M 8000 -J"[1-24]_perchr" -e%J.out -o%J.out "python3 cpg_snp_analysis.py Filtered_finemapped.csv_chr_* -o per_chr"')
+        if not os.path.exists('per_chr'):
+            os.makedirs('per_chr')
+        os.system(f'bsub -w"done(merge)" -M 1000 -Jsplit -esplit.out -osplit.out bash {ABS_PATH}/split_filter.sh ../Filtered_nano_bam_files.csv per_chr')
+        for chr in range(1,25):
+            print(chr)
+            os.system(f'bsub -w"done(split)" -M 8000 -Jcpg_{chr} -eper_chr/cpg_{chr}.out -oper_chr/cpg_{chr}.out "python3 {ABS_PATH}/cpg_snp_analysis.py per_chr/Filtered_nano_bam_files.csv_chr_{chr}.csv -oper_chr -u{target_snp}"')
+        # TODO implement the merging of the analysis files
+        os.system('bsub -w"ended(cpg*)" -Jverifcpg -e/dev/null -o/dev/null "grep LSBATCH per_chr/cpg_*.out -A5 | grep -v LSBATCH | grep -v python3 > per_chr/SUMMARY.out"')
+        for file in ['Counts_Diff_means.csv', 'Mann_Whitney.csv', 'Spearmann_corr.csv' ]:
+            os.system(f'bsub -w"done(verifcpg)" -Jmerge{file} -e/dev/null -o/dev/null "head -n1 per_chr/Filtered_nano_bam_files.csv_1_{file} > ../All_{file} ; tail -n+2 -q per_chr/Filtered_nano_bam_files.csv_*{file} >> ../All_{file}')
 
     if ('3' in steps) or ('all' in steps):
-        print('# STEP3')
+        print('# STEP3 -- Not implemented YET')
         # Plotting
         # if '3' in steps:
         #     os.system('bsub -w"done(stats)" -Jplots -M {} "python3 methylation_analysis.py   "')
