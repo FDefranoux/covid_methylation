@@ -14,9 +14,6 @@ sys.path.insert(0, PATH_UTILS)
 from utils import *
 import argparse
 
-file_ls = 'Filtered_finemapped.csv*.csv'
-unit='control_snp'
-
 
 def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0.05):
     if not df.empty:
@@ -48,10 +45,8 @@ def count_and_mean_values(df, vars, mean_measure):
     return count_mean
 
 
-def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls=[]):
-    # TODO: Include automatic selection of the cpg of interest?
-    # df = median_df.copy()
-    # output=''
+def Loop_stats(df, unit, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls=[]):
+
     if not cpg_ls:
         cpg_ls = df['cpg'].unique()
     count_cols = ['0/0', '0/1', '1/1', 'alt', 'ref', 'Mild', 'Severe', 'means_ref-alt']
@@ -87,13 +82,11 @@ def Loop_stats(df, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls
 
 
 # MAIN
-def main(filtered_file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'Severe']):
+def main(file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'Severe']):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     # Opening file
-    file_ls = directory_to_file_list(filtered_file)
-    file = lsf_arrray(file_ls)
     all_df = pd.read_csv(file, dtype='object')
 
     # TODO ERASE ???:
@@ -101,7 +94,7 @@ def main(filtered_file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'S
     all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
     print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1']) == False].shape[0], flush=True)
     all_df = all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1'])]
-    snp_ls = pd.read_table('finemapped', header=None)[0].tolist()
+    snp_ls = pd.read_table(f'{ABS_PATH}/finemapped', header=None)[0].tolist()
     print('\nNumber of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0], flush=True)
     all_df = all_df[(all_df['covid_snp'].isin(snp_ls))]
     print('\nNumber of duplicated lines: ', all_df[all_df.duplicated(keep=False)].shape[0], flush=True)
@@ -126,17 +119,17 @@ def main(filtered_file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'S
     # snp_counts = median_df.groupby([unit, 'Genotype']).size().unstack()
     # cpg_counts = median_df.groupby(['cpg', unit, 'Genotype']).size().unstack()
     # cpg_counts_10 = cpg_counts[cpg_counts > 10].dropna(how= 'all').index.levels[0]
-    Loop_stats(median_df, gen_ls=gen_ls, phen_ls=phen_ls, output=f'{os.path.join(output_dir, os.path.basename(file)[:-4])}_')
+    Loop_stats(median_df, unit, gen_ls=gen_ls, phen_ls=phen_ls, output=f'{os.path.join(output_dir, os.path.basename(file)[:-4])}_')
 
 
 if __name__ == '__main__':
     # main(file_ls, unit)
     parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
         + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
-    parser.add_argument('filtered_file', type=str, help='basecalling file')
+    parser.add_argument('file', type=str, help='filtered working file')
     parser.add_argument('-o', '--output_dir', type=str, default='',
                         help='directory to save output files')
-    parser.add_argument('-u', '--unit', type=str, default='cpg',
+    parser.add_argument('-u', '--unit', type=str, default='snp',
                         help='unit to perform analysis')
     parser.add_argument('-g', '--gen_ls', type=str, default='0/1',
                         help='list of genotypes to perform specific analysis on')
