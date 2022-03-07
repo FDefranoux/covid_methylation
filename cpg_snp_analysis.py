@@ -49,7 +49,8 @@ def Loop_stats(df, unit, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], 
 
     if not cpg_ls:
         cpg_ls = df['cpg'].unique()
-    count_cols = ['0/0', '0/1', '1/1', 'alt', 'ref', 'Mild', 'Severe', 'means_ref-alt']
+    count_cols = ['cpg', '0/0', '0/1', '1/1', 'alt', 'ref', 'Mild', 'Severe', 'means_ref-alt']
+    print(phen_ls, gen_ls)
     for cpg in cpg_ls:
 
         if cpg == cpg_ls[0]:
