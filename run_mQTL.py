@@ -91,7 +91,7 @@ def main(yaml_file, steps='all'):
     # Verification of the list of files bam and nano
     nano_files = directory_to_file_list(yml['nanopolish_directory'])
     basecal_files = directory_to_file_list(yml['basecalling_directory'])
-    initial_len_ls = (len(nano_files), len(basecal_files))
+    # initial_len_ls = (len(nano_files), len(basecal_files))
     nano_files, basecal_files = correspondance_list_files(nano_files, basecal_files, details=True)
     print(f'\nNumber of corresponding nano-basecalling files: {len(nano_files)}')
 
@@ -134,12 +134,13 @@ def main(yaml_file, steps='all'):
         os.system(f'bsub -w"done(merge)" -M 1000 -Jsplit -esplit.out -osplit.out "bash {ABS_PATH}/split_filter.sh ../Filtered_nano_bam_files.csv per_chr"')
         for chr in range(1,25):
             print(chr)
-            os.system(f'bsub -w"done(split)" -M 8000 -Jcpg_{chr} -eper_chr/cpg_{chr}.out -oper_chr/cpg_{chr}.out "python3 {ABS_PATH}/cpg_snp_analysis.py per_chr/Filtered_nano_bam_files.csv_chr_{chr}.csv -oper_chr -u{target_snp}"')
+            os.system(f'bsub -w"done(split)" -M 8000 -Jcpg_{chr} -eper_chr/cpg_{chr}.out -oper_chr/cpg_{chr}.out "python3 {ABS_PATH}/cpg_snp_analysis.py Filtered_nano_bam_files.csv_chr_{chr}.csv -oper_chr -u {target_snp}"')
         # TODO implement the merging of the analysis files
+        # TODO manage if file is empty
         os.system('bsub -w"ended(cpg*)" -Jverifcpg -e/dev/null -o/dev/null "grep LSBATCH per_chr/cpg_*.out -A5 | grep -v LSBATCH | grep -v python3 > per_chr/SUMMARY.out"')
         for file in ['Counts_Diff_means.csv', 'Mann_Whitney.csv', 'Spearmann_corr.csv' ]:
-            os.system(f'bsub -w"done(verifcpg)" -Jhead{file} -e/dev/null -o/dev/null "head -n1 per_chr/Filtered_nano_bam_files.csv_1_{file} > ../All_{file}"')
-            os.system(f'bsub -w"done(verifcpg)" -M1000 -Jmerge{file} -e/dev/null -o/dev/null "tail -n+2 -q per_chr/Filtered_nano_bam_files.csv_*{file} >> ../All_{file}"')
+            os.system(f'bsub -w"done(verifcpg)" -Jhead{file} -e/dev/null -o/dev/null "head -n1 per_chr/Filtered_nano_bam_files.csv_chr_1_{file} > ../All_{file}"')
+            os.system(f'bsub -w"done(head{file})" -M1000 -Jmerge{file} -e/dev/null -o/dev/null "tail -n+2 -q per_chr/Filtered_nano_bam_files.csv_chr_*_{file} >> ../All_{file}"')
 
     if ('3' in steps) or ('all' in steps):
         print('# STEP3 -- Not implemented YET')
