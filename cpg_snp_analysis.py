@@ -85,7 +85,7 @@ def Loop_stats(df, unit, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], 
 
 
 # MAIN
-def main(file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'Severe']):
+def main(file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'Severe'], list_snp_file=''):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -97,9 +97,10 @@ def main(file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'Severe']):
     all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
     print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1']) == False].shape[0], flush=True)
     all_df = all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1'])]
-    snp_ls = pd.read_table(f'{ABS_PATH}/finemapped', header=None)[0].tolist()
-    print('\nNumber of rows with wrong SNPs: ', all_df[(all_df['covid_snp'].isin(snp_ls) == False)].shape[0], flush=True)
-    all_df = all_df[(all_df['covid_snp'].isin(snp_ls))]
+    if list_snp_file:
+        snp_ls = pd.read_table(list_snp_file, header=None)[0].tolist()
+        print('\nNumber of rows with wrong SNPs: ', all_df[(all_df[unit].isin(snp_ls) == False)].shape[0], flush=True)
+        all_df = all_df[(all_df[unit].isin(snp_ls))]
     print('\nNumber of duplicated lines: ', all_df[all_df.duplicated(keep=False)].shape[0], flush=True)
     del snp_ls
     all_df = all_df[all_df.duplicated() == False]
@@ -138,6 +139,8 @@ if __name__ == '__main__':
                         help='list of genotypes to perform specific analysis on')
     parser.add_argument('-p', '--phen_ls', type=str, default='Mild-Severe',
                         help='list of phenotypes to perform specific analysis on')
+    parser.add_argument('-f', '--list_snp_file', type=str, default=f'{ABS_PATH}/finemapped',
+                        help='list of snp to verify validity of snp list we got')
     args = parser.parse_args()
     main(**vars(args))
 

@@ -14,3 +14,4 @@ command: python3 run_mQTL.py yaml_mQTLs.yml
 #   nanopolish_directory: /hps/nobackup/birney/projects/gel_methylation/nanopolish/*
 #   snp_type: control_snp
 #   finemapping: False
+#   list_snp_file: /nfs/research/birney/users/fanny/covid_nanopore/base_called_from_bam_files/control_snp_finemapped
