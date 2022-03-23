@@ -223,14 +223,6 @@ def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, n_site=2, format_xaxis
     stat['cutoff'] = pval_cutoff
     stat.sort_values('CHR', inplace=True)
 
-    # Format X-axis
-    if format_xaxis:
-        last_pos = 0
-        for chr in stat.sort_values(['CHR', 'POS'])['CHR'].astype(int).unique():
-            stat.loc[stat['CHR'] == chr, 'new_xvar'] = stat.loc[stat['CHR'] == chr, 'POS'] - stat.loc[stat['CHR'] == chr, 'POS'].min() + last_pos + 1
-            last_pos = stat.loc[stat['CHR'] == chr, 'new_xvar'].max()
-            # print(last_pos)
-
     # Selection best snp
     best_cpg = stat[stat['cutoff'] < stat['minus_log10']].sort_values(
         'minus_log10', ascending=False).groupby('CHR').head(n_site)[
@@ -242,8 +234,16 @@ def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, n_site=2, format_xaxis
     stat.loc[stat[f'{xvar}_best'].isna(), f'{xvar}_best'] = ' '
     print(f'ABOVE CUTOFF {title_supp}: {best_cpg}')
 
+    # Format X-axis
+    if format_xaxis:
+        last_pos = 0
+        for chr in stat.sort_values(['CHR', 'POS'])['CHR'].astype(int).unique():
+            stat.loc[stat['CHR'] == chr, 'new_xvar'] = stat.loc[stat['CHR'] == chr, 'POS'] - stat.loc[stat['CHR'] == chr, 'POS'].min() + last_pos + 1
+            last_pos = stat.loc[stat['CHR'] == chr, 'new_xvar'].max()
+            # print(last_pos)
+        xvar = 'new_xvar'
+
     # PLOT
-    xvar = 'new_xvar'
     g = sns.FacetGrid(stat, aspect=4, height=4, palette='Spectral',
                       margin_titles=True)
     g.map(sns.lineplot, xvar, 'cutoff', hue=None)
