@@ -240,7 +240,7 @@ def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, n_site=2, format_xaxis
         f'{xvar}_best'] = stat.loc[(stat[xvar].isin(best_cpg)) &
                     (stat['minus_log10'] > stat['cutoff']), 'cpg']
     stat.loc[stat[f'{xvar}_best'].isna(), f'{xvar}_best'] = ' '
-    print(f'{unit} ABOVE CUTOFF {title_supp}: {best_cpg}')
+    print(f'ABOVE CUTOFF {title_supp}: {best_cpg}')
 
     # PLOT
     xvar = 'new_xvar'
