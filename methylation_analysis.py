@@ -20,6 +20,7 @@ import numpy as np
 from utils import *
 # from utils_plots import *
 import re
+import argparse
 
 
 def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', width_var=None, hatch_var=None, ax=None,  art_df=pd.DataFrame()):
@@ -257,6 +258,7 @@ def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, n_site=2, format_xaxis
                 horizontalalignment='left')
     except Exception as err:
         print('couldn\'t print best points', err)
+    plt.suptitle(title_supp)
     save_plot_report(f'minuslog10_{pval_col}_pvalue_{title_supp}', g, output=out_dir, file=sys.stdout)
 
     return stat[stat['cutoff'] < stat['minus_log10']].sort_values(
@@ -324,12 +326,13 @@ def save_results_count_significant_cpg(res_cpg):
     blou.to_csv('Ratio_hits.csv', index=False)
 
 
-def main(file_ls, snp_type, title='', list_val=[], list_data=[], pval_cutoff=0.01):
-    if not os.path.exists('plots'):
-        os.makedirs('plots')
+def main(files, snp_type, output_dir='plots', list_val=[], list_data=[], pval_cutoff=0.01):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    file_ls = files.split('--')
     print(file_ls)
     for file in file_ls:
-        df = pd.read_csv(file, header=None, names=['index', 'p-val', 'cpg', 'data'])
+        df = pd.read_csv(file)
         res_df = pd.DataFrame(columns=['test', 'value', 'dataset', 'type', 'total_cpg', 'cpg_significant', 'plot_cpg_number'])
         if not list_val:
             if 'Whitney' in file:
@@ -348,7 +351,7 @@ def main(file_ls, snp_type, title='', list_val=[], list_data=[], pval_cutoff=0.0
                 print(cutoff)
                 # Pval plot
                 list_cpg = pval_plot_new(df, xvar='cpg', pval_col='p-val', pval_cutoff=cutoff, n_site=2,
-                          title_supp=f"{file}_{val}_{data.replace('/', '-')}_{snp_type}", out_dir='plots',
+                          title_supp=f"{file}_{val}_{data.replace('/', '-')}_{snp_type}", out_dir=output_dir,
                           format_xaxis=False)
                 res = pd.DataFrame([file, val, data, snp_type, int['cpg'].nunique(), int[int['p-val'].astype(float) < pval_cutoff]['cpg'].nunique(), len(list_cpg)]).T
                 res.columns = res_df.columns
@@ -359,11 +362,17 @@ def main(file_ls, snp_type, title='', list_val=[], list_data=[], pval_cutoff=0.0
 
 
 if __name__ == '__main__':
-    out_dir = '/nfs/research/birney/users/fanny/covid_nanopore/control_snp_finemapped_March_2022'
-    file_ls = ['All_Mann_Whitney.csv', 'All_Spearmann_corr.csv']
-    file_ls = [os.path.join(out_dir, file) for file in file_ls]
-    main(file_ls, snp_type='covid_snp', title='', pval_cutoff=0.01)
-
+    parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
+        + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
+    parser.add_argument('files', type=str, help='files to plot in concatenated string')
+    parser.add_argument('-o', '--output_dir', type=str, default='plots',
+                        help='directory to save output files')
+    parser.add_argument('-s', '--snp_type', type=str, default='snp',
+                        help='unit to perform analysis')
+    parser.add_argument('-p', '--pval_cutoff', type=float, default=0.01,
+                        help='pvalue to define significant cpg')
+    args = parser.parse_args()
+    main(**vars(args))
 
 
 
