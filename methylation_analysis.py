@@ -327,7 +327,7 @@ def save_results_count_significant_cpg(res_cpg):
     blou.to_csv('Ratio_hits.csv', index=False)
 
 
-def main(files, snp_type, output_dir='plots', list_val=[], list_data=[], pval_cutoff=0.01):
+def main(files, snp_type, output_dir='plots', pval_cutoff=0.01):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     file_ls = files.split('--')
@@ -343,6 +343,13 @@ def main(files, snp_type, output_dir='plots', list_val=[], list_data=[], pval_cu
 
     for file in file_ls:
         df = pd.read_csv(file, usecols=['index', 'data']).drop_duplicates()
+        list_data = df['data'].unique()
+        if 'Mann_Whitney' in file:
+            list_val = ['Mild-Severe', 'alt-ref']
+        else:
+            list_val = df['index'].unique()
+        if (list_val != []) & (list_data != []):
+            df = df[(df['index'].isin(list_val)) & (df['data'].isin(list_data))]
         res_df = pd.DataFrame(columns=['test', 'value', 'dataset', 'type', 'total_cpg', 'cpg_significant', 'plot_cpg_number'])
         for i in df.index:
             val, data = df.loc[i].tolist()
