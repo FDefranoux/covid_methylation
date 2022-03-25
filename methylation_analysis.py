@@ -21,6 +21,7 @@ from utils import *
 # from utils_plots import *
 import re
 import argparse
+import subprocess
 
 
 def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', width_var=None, hatch_var=None, ax=None,  art_df=pd.DataFrame()):
@@ -331,32 +332,31 @@ def main(files, snp_type, output_dir='plots', list_val=[], list_data=[], pval_cu
         os.makedirs(output_dir)
     file_ls = files.split('--')
     print(file_ls)
+
+    # QUESTION: do we need to run it in separate job ?
+    if snp_type == 'covid_snp':
+        cutoff = -np.log10(pval_cutoff/df['cpg'].nunique())
+        cutoff = round(cutoff, 1)
+    else:
+        cutoff = pval_cutoff
+    print(cutoff)
+
     for file in file_ls:
-        df = pd.read_csv(file)
+        df = pd.read_csv(file, usecols=['index', 'data']).drop_duplicates()
         res_df = pd.DataFrame(columns=['test', 'value', 'dataset', 'type', 'total_cpg', 'cpg_significant', 'plot_cpg_number'])
-        if not list_val:
-            if 'Whitney' in file:
-                list_val = ['Mild-Severe', 'alt-ref']
-            elif 'Spearman'in file:
-                list_val = list(df['index'].unique())
-        for val in list_val:
-            for data in df[df['index'] == val]['data'].unique():
-                int = df[(df['index'] == val) & (df['data'] == data)]
-                # QUESTION: do we need to run it in separate job ?
-                if snp_type == 'covid_snp':
-                    cutoff = -np.log10(pval_cutoff/df['cpg'].nunique())
-                    cutoff = round(cutoff, 1)
-                else:
-                    cutoff = pval_cutoff
-                print(cutoff)
-                # Pval plot
-                list_cpg = pval_plot_new(df, xvar='cpg', pval_col='p-val', pval_cutoff=cutoff, n_site=2,
-                          title_supp=f"{file}_{val}_{data.replace('/', '-')}_{snp_type}", out_dir=output_dir,
-                          format_xaxis=False)
-                res = pd.DataFrame([file, val, data, snp_type, int['cpg'].nunique(), int[int['p-val'].astype(float) < pval_cutoff]['cpg'].nunique(), len(list_cpg)]).T
-                res.columns = res_df.columns
-                res_df = res_df.append(res, sort=False)
-                print(f'\n{file} {data} {val}:\n', int[int['p-val'].astype(float) < 0.01]['cpg'].unique())
+        for i in df.index:
+            val, data = df.loc[i].tolist()
+            grep_out = subprocess.Popen([f"grep {data} {file} | grep {val}"], stdout=subprocess.PIPE,shell=True)
+            df_data = pd.DataFrame([n.split(',') for n in str(grep_out.communicate()[0]).split('\\n')], columns=['index', 'p-val', 'cpg', 'data'])
+            df_data = df_data[(df_data['index'] == val) & (df_data['data'] == data)]
+            # Pval plot
+            list_cpg = pval_plot_new(df, xvar='cpg', pval_col='p-val', pval_cutoff=cutoff, n_site=2,
+                      title_supp=f"{file}_{val}_{data.replace('/', '-')}_{snp_type}", out_dir=output_dir,
+                      format_xaxis=False)
+            res = pd.DataFrame([file, val, data, snp_type, df_data['cpg'].nunique(), df_data[df_data['p-val'].astype(float) < pval_cutoff]['cpg'].nunique(), len(list_cpg)]).T
+            res.columns = res_df.columns
+            res_df = res_df.append(res, sort=False)
+            print(f'\n{file} {data} {val}:\n', df_data[df_data['p-val'].astype(float) < 0.01]['cpg'].unique())
 
     save_results_count_significant_cpg(res_df)
 
