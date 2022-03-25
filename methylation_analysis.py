@@ -350,7 +350,7 @@ def main(files, snp_type, output_dir='plots', list_val=[], list_data=[], pval_cu
             df_data = pd.DataFrame([n.split(',') for n in str(grep_out.communicate()[0]).split('\\n')], columns=['index', 'p-val', 'cpg', 'data'])
             df_data = df_data[(df_data['index'] == val) & (df_data['data'] == data)]
             # Pval plot
-            list_cpg = pval_plot_new(df, xvar='cpg', pval_col='p-val', pval_cutoff=cutoff, n_site=2,
+            list_cpg = pval_plot_new(df_data, xvar='cpg', pval_col='p-val', pval_cutoff=cutoff, n_site=2,
                       title_supp=f"{file}_{val}_{data.replace('/', '-')}_{snp_type}", out_dir=output_dir,
                       format_xaxis=False)
             res = pd.DataFrame([file, val, data, snp_type, df_data['cpg'].nunique(), df_data[df_data['p-val'].astype(float) < pval_cutoff]['cpg'].nunique(), len(list_cpg)]).T
