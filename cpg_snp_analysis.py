@@ -120,7 +120,7 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.'
             lines.extend(Line)
             labels.extend(Label)
             print(Label)
-            label_title = df[df == Label[0]].dropna(how='all', axis=1).columns.tolist()[0]
+            label_title = cpg_df[cpg_df == Label[0]].dropna(how='all', axis=1).columns.tolist()[0]
             print(label_title)
             if label_title == 'phenotype':
                 fig.legend(handles=[mpatches.Patch(facecolor=val, label=key, lw=1, ec=sns.color_palette('dark')[-3],
