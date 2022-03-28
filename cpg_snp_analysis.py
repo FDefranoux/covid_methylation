@@ -14,6 +14,124 @@ sys.path.insert(0, PATH_UTILS)
 from utils import *
 import argparse
 
+def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', width_var=None, width_dict={}, hatch_var=None, hatch_dict={}, ax=None):
+    df = df[df[hue_var].isin(dict_colors.keys())]
+
+    # Creation of the plot
+    # plt.rcParams['patch.edgecolor'] = 'black'
+    g2 = sns.boxplot(data=df, x=x_var, y=y_var, orient='v', hue=hue_var, palette=dict_colors, ax=ax, color='black')
+
+    var_ls = {x for x in [x_var, hue_var, hatch_var, width_var] if x}
+    value_df = df[var_ls].drop_duplicates()
+
+    if (hatch_var != None) & (hatch_dict == {}):
+        hatch_list = ['+', 'O', '.', '*', '-', '|', '/', '\ ', 'x', 'o',]
+        hatch_dict = {val: hatch_list[n] for n, val in enumerate(value_df[hatch_var].unique())}
+    if (width_var != None) & (width_dict == {}):
+        width_dict = {val: n*2 + 1 for n, val in enumerate(value_df[width_var].unique())}
+
+    value_df['Hue'] = value_df[hue_var].replace(dict_colors)
+
+    value_df.index = g2.artists
+    for art in g2.artists:
+        if hatch_var:
+            value_df['Hatch'] = value_df[hatch_var].replace(hatch_dict)
+            art.set_hatch(value_df.loc[art, 'Hatch'])
+        if width_var:
+            value_df['Width'] = value_df[width_var].replace(width_dict)
+            art.set_linewidth(value_df.loc[art, 'Width'])
+    return g2
+
+
+def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.', dict_colors=None):
+    # General modification of the datas
+    cpg_df = cpg_df.copy()
+    unit='covid_snp'
+    cpg = str(cpg_df['cpg'].unique())[2:-2]
+    snp = str(cpg_df[unit].unique().tolist())[2:-2]
+    ref, alt = snp.split(':')[-2:]
+    replace_dict = {'haplotype': {'ref': ref, 'alt': alt}, 'Genotype': {'0/0': f'{ref}/{ref}', '0/1': f'{ref}/{alt}', '1/1': f'{alt}/{alt}'}}
+    cpg_df.replace(replace_dict, inplace=True)
+
+    # Aesthetic parameters
+    dict_hatch = {'Severe': '||', 'Mild': '/'}
+    if not dict_colors:
+        dict_colors = {'Genotype': {'0/0':'#1678F5', '0/1':'#2aa69a', '1/1':'#3ED43E'},
+                       'haplotype': {'ref':'#1678F5', 'alt':'#3ED43E'},
+                       'phenotype': {'Mild':'#f0f0f5', 'Severe':'#c2c2d6'}}
+
+    # Modification of the color dataframe to fit the replacement
+    repl_colors = {}
+    for key, dict in dict_colors.items():
+        if replace_dict.get(key):
+            repl_colors.update({key: {replace_dict.get(key).get(k): dict_colors.get(key).get(k) for k in dict.keys() if replace_dict.get(key).get(k) != None}})
+        else:
+            repl_colors.update({key:{k: dict_colors.get(key).get(k) for k in dict.keys() }})
+
+    # Creation of the plot
+    fig, ax = plt.subplots(2, 3, figsize=(17,10))
+    boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='phenotype',
+                                 dict_colors=repl_colors['phenotype'], width_var=None,
+                                 hatch_var='phenotype', ax=ax[0,0], hatch_dict=dict_hatch)
+    ax[0,0].set(title='Phenotype')
+    boxplot_customized(cpg_df, 'Genotype', 'log_lik_ratio', hue_var='Genotype',
+                                 dict_colors=repl_colors['Genotype'],
+                                 width_var=None, ax=ax[0,1], hatch_dict=dict_hatch)
+    ax[0,1].set(title='Genotype')#, xticklabels=replace_val['Genotype'].values())
+    boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='Genotype',
+                                 dict_colors=repl_colors['Genotype'], width_var=None,
+                                 hatch_var='phenotype', ax=ax[0,2], hatch_dict=dict_hatch)
+    ax[0,2].set(title='Genotype X Phenotype')
+    if not cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']].empty:
+        boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'phenotype',
+                                       'log_lik_ratio', hue_var='phenotype',
+                                       dict_colors=repl_colors['phenotype'],
+                                       hatch_var='phenotype', width_var=None,
+                                       ax=ax[1,0], hatch_dict=dict_hatch)
+        ax[1,0].set(title='Heterozygous Phenotype')
+        boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'haplotype', 'log_lik_ratio',
+                                      hue_var='haplotype', dict_colors=repl_colors['haplotype'],
+                                      hatch_var=None, width_var=None, ax=ax[1,1],
+                                      hatch_dict=dict_hatch)
+        ax[1,1].set(title='Heterozygous Haplotype') #, xticklabels=replace_val['haplotype'].values())
+        boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'phenotype', 'log_lik_ratio',
+                                      hue_var='haplotype', dict_colors=repl_colors['haplotype'],
+                                      hatch_var='phenotype', width_var=None, ax=ax[1,2],
+                                      hatch_dict=dict_hatch)
+        ax[1,2].set(title='Heterozygous Haplotype X Phenotype')
+    else:
+        fig.delaxes(ax[1, 0])
+        fig.delaxes(ax[1, 1])
+        fig.delaxes(ax[1, 2])
+    plt.suptitle(f'CpG {cpg} associated with SNP {snp}')
+
+    # Creation of one common legend for all
+    lines, labels = [], []
+    x = 0.6
+    for a in fig.axes:
+        Line, Label = a.get_legend_handles_labels()
+        a.get_legend().remove()
+        if (set(Label) & set(labels)) == set():
+            lines.extend(Line)
+            labels.extend(Label)
+            print(Label)
+            label_title = df[df == Label[0]].dropna(how='all', axis=1).columns.tolist()[0]
+            print(label_title)
+            if label_title == 'phenotype':
+                fig.legend(handles=[mpatches.Patch(facecolor=val, label=key, lw=1, ec=sns.color_palette('dark')[-3],
+                                         hatch=dict_hatch[key]) for key, val in dict_colors['phenotype'].items()],
+                                         title='Phenotype', loc='center left', bbox_to_anchor=(0.9, x))
+            elif label_title == 'base_called':
+                label_title = 'Haplotype'
+                fig.legend(Line, Label, loc='center left', bbox_to_anchor=(0.9, x), title=label_title)
+            else:
+                fig.legend(Line, Label, loc='center left', bbox_to_anchor=(0.9, x), title=label_title)
+            x = x - 0.08
+
+
+    save_plot_report(f'{dir_out}/Multiplots_{cpg}.png', fig, file=None)
+    # fig.savefig(f'{dir_out}/Multiplots_{cpg}.png')
+
 
 def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0.05):
     if not df.empty:
@@ -123,11 +241,25 @@ def main(file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'Severe'], 
     # snp_counts = median_df.groupby([unit, 'Genotype']).size().unstack()
     # cpg_counts = median_df.groupby(['cpg', unit, 'Genotype']).size().unstack()
     # cpg_counts_10 = cpg_counts[cpg_counts > 10].dropna(how= 'all').index.levels[0]
-    Loop_stats(median_df, unit, gen_ls=gen_ls, phen_ls=phen_ls, output=f'{os.path.join(output_dir, os.path.basename(file)[:-4])}_')
 
+    # Loop_stats(median_df, unit, gen_ls=gen_ls, phen_ls=phen_ls, output=f'{os.path.join(output_dir, os.path.basename(file)[:-4])}_')
+    cpg_ls = ['21:33243685:1', '21:33247116:1', '17:45501201:2', '11:16996188:1',
+              '1:85220632:1', '15:43591259:1', '12:112925195:1', '19:10354080:3',
+              '10:79535851:1', '6:31133406:2', '9:133262493:1', '13:27151562:1',
+              '19:50314700:1', '15:43691102:3', '3:45847444:1', '18:62362967:1',
+              '1:155220731:1', '13:41393886:2', '12:112935779:1', '18:70635452:1',
+              '17:81597736:2', '10:79491025:1', '11:72864523:1', '6:31142922:2',
+              '9:133286263:1', '14:62083099:1', '3:45847362:1', '14:103504667:4',]
+    cpg_ls += ['21:33242527:1', '17:46065976:1', '21:33229986:3', '3:45848456:1',
+               '12:112925744:1', '17:46768336:3', '9:133271878:1', '1:155209089:1',
+               '9:133271842:1', '6:33069193:2', '21:33226777:1']
+
+    for cpg in set(cpg_ls):
+        cpg_df = median_df[median_df['cpg'] == cpg]
+        if not cpg_df.empty:
+            setup_customizedboxplot_cpg_analysis(cpg_df, unit=unit, dir_out='plots', dict_colors=None)
 
 if __name__ == '__main__':
-    # main(file_ls, unit)
     parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
         + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
     parser.add_argument('file', type=str, help='filtered working file')
