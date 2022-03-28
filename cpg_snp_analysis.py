@@ -13,6 +13,11 @@ else:
 sys.path.insert(0, PATH_UTILS)
 from utils import *
 import argparse
+import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.offsetbox import (AnchoredOffsetbox, DrawingArea, HPacker,
+                                  TextArea)
 
 def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', width_var=None, width_dict={}, hatch_var=None, hatch_dict={}, ax=None):
     df = df[df[hue_var].isin(dict_colors.keys())]
@@ -263,7 +268,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
         + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
     parser.add_argument('file', type=str, help='filtered working file')
-    parser.add_argument('-o', '--output_dir', type=str, default='',
+    parser.add_argument('-o', '--output_dir', type=str, default='.',
                         help='directory to save output files')
     parser.add_argument('-u', '--unit', type=str, default='snp',
                         help='unit to perform analysis')
