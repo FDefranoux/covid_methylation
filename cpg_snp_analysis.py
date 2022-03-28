@@ -203,7 +203,7 @@ def Loop_stats(df, unit, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], 
 
 
 # MAIN
-def main(file, unit, output_dir='', gen_ls=['0/1'], phen_ls=['Mild', 'Severe'], list_snp_file=''):
+def main(file, unit, output_dir='.', gen_ls=['0/1'], phen_ls=['Mild', 'Severe'], list_snp_file=''):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
