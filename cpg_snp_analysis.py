@@ -102,7 +102,7 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.'
                                       hue_var='haplotype', dict_colors=repl_colors['haplotype'],
                                       hatch_var='phenotype', width_var=None, ax=ax[1,2],
                                       hatch_dict=dict_hatch)
-        ax[1,2].set(title='Heterozygous Allele difference X Symptom severity')
+        ax[1,2].set(title='Het. Allele difference X Symptom severity')
     else:
         fig.delaxes(ax[1, 0])
         fig.delaxes(ax[1, 1])
