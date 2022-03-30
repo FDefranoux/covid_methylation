@@ -51,7 +51,6 @@ def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', widt
 def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.', dict_colors=None):
     # General modification of the datas
     cpg_df = cpg_df.copy()
-    unit='covid_snp'
     cpg = str(cpg_df['cpg'].unique())[2:-2]
     snp = str(cpg_df[unit].unique().tolist())[2:-2]
     ref, alt = snp.split(':')[-2:]
@@ -119,9 +118,7 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.'
         if (set(Label) & set(labels)) == set():
             lines.extend(Line)
             labels.extend(Label)
-            print(Label)
             label_title = cpg_df[cpg_df == Label[0]].dropna(how='all', axis=1).columns.tolist()[0]
-            print(label_title)
             if label_title == 'phenotype':
                 fig.legend(handles=[mpatches.Patch(facecolor=val, label=key, lw=1, ec=sns.color_palette('dark')[-3],
                                          hatch=dict_hatch[key]) for key, val in dict_colors['phenotype'].items()],
@@ -134,7 +131,7 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.'
             x = x - 0.08
 
 
-    save_plot_report(f'{dir_out}/Multiplots_{cpg}.png', fig, file=None)
+    save_plot_report(f'Multiplots_{cpg}.png', fig, output=dir_out, file=None)
     # fig.savefig(f'{dir_out}/Multiplots_{cpg}.png')
 
 
