@@ -28,6 +28,7 @@ def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', widt
 
     var_ls = {x for x in [x_var, hue_var, hatch_var, width_var] if x}
     value_df = df[var_ls].drop_duplicates()
+    value_df.sort_values('p')
 
     if (hatch_var != None) & (hatch_dict == {}):
         hatch_list = ['+', 'O', '.', '*', '-', '|', '/', '\ ', 'x', 'o',]
@@ -71,7 +72,7 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.'
             repl_colors.update({key: {replace_dict.get(key).get(k): dict_colors.get(key).get(k) for k in dict.keys() if replace_dict.get(key).get(k) != None}})
         else:
             repl_colors.update({key:{k: dict_colors.get(key).get(k) for k in dict.keys() }})
-
+    cpg_df.sort_values(['phenotype', 'Genotype', 'haplotype'], inplace=True)
     # Creation of the plot
     fig, ax = plt.subplots(2, 3, figsize=(17,10))
     boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='phenotype',
