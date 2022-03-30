@@ -19,12 +19,12 @@ import matplotlib.patches as mpatches
 from matplotlib.offsetbox import (AnchoredOffsetbox, DrawingArea, HPacker,
                                   TextArea)
 
-def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', width_var=None, width_dict={}, hatch_var=None, hatch_dict={}, ax=None):
+def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', width_var=None, width_dict={}, hatch_var=None, hatch_dict={}, ax=None, **kwargs):
     df = df[df[hue_var].isin(dict_colors.keys())]
 
     # Creation of the plot
     # plt.rcParams['patch.edgecolor'] = 'black'
-    g2 = sns.boxplot(data=df, x=x_var, y=y_var, orient='v', hue=hue_var, palette=dict_colors, ax=ax, color='black')
+    g2 = sns.boxplot(data=df, x=x_var, y=y_var, orient='v', hue=hue_var, palette=dict_colors, ax=ax, color='black', **kwargs)
 
     var_ls = {x for x in [x_var, hue_var, hatch_var, width_var] if x}
     value_df = df[var_ls].drop_duplicates()
@@ -78,37 +78,37 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.'
     boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='phenotype',
                                  dict_colors=repl_colors['phenotype'], width_var=None,
                                  hatch_var='phenotype', ax=ax[0,0], hatch_dict=dict_hatch)
-    ax[0,0].set(title='Phenotype')
+    ax[0,0].set(title='Symptom severity')
     boxplot_customized(cpg_df, 'Genotype', 'log_lik_ratio', hue_var='Genotype',
                                  dict_colors=repl_colors['Genotype'],
                                  width_var=None, ax=ax[0,1], hatch_dict=dict_hatch)
-    ax[0,1].set(title='Genotype')#, xticklabels=replace_val['Genotype'].values())
+    ax[0,1].set(title='Genotype correlation')#, xticklabels=replace_val['Genotype'].values())
     boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='Genotype',
                                  dict_colors=repl_colors['Genotype'], width_var=None,
-                                 hatch_var='phenotype', ax=ax[0,2], hatch_dict=dict_hatch)
-    ax[0,2].set(title='Genotype X Phenotype')
+                                 hatch_var='phenotype', ax=ax[0,2], hatch_dict=dict_hatch, dodge=False)
+    ax[0,2].set(title='Genotype correlation X Symptom severity')
     if not cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']].empty:
         boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'phenotype',
                                        'log_lik_ratio', hue_var='phenotype',
                                        dict_colors=repl_colors['phenotype'],
                                        hatch_var='phenotype', width_var=None,
                                        ax=ax[1,0], hatch_dict=dict_hatch)
-        ax[1,0].set(title='Heterozygous Phenotype')
+        ax[1,0].set(title='Heterozygous Symptom Severity')
         boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'haplotype', 'log_lik_ratio',
                                       hue_var='haplotype', dict_colors=repl_colors['haplotype'],
                                       hatch_var=None, width_var=None, ax=ax[1,1],
-                                      hatch_dict=dict_hatch)
-        ax[1,1].set(title='Heterozygous Haplotype') #, xticklabels=replace_val['haplotype'].values())
+                                      hatch_dict=dict_hatch, dodge=False)
+        ax[1,1].set(title='Heterozygous Allele difference') #, xticklabels=replace_val['haplotype'].values())
         boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'phenotype', 'log_lik_ratio',
                                       hue_var='haplotype', dict_colors=repl_colors['haplotype'],
                                       hatch_var='phenotype', width_var=None, ax=ax[1,2],
                                       hatch_dict=dict_hatch)
-        ax[1,2].set(title='Heterozygous Haplotype X Phenotype')
+        ax[1,2].set(title='Heterozygous Allele difference X Symptom severity')
     else:
         fig.delaxes(ax[1, 0])
         fig.delaxes(ax[1, 1])
         fig.delaxes(ax[1, 2])
-    plt.suptitle(f'CpG {cpg} associated with SNP {snp}')
+    plt.suptitle(f'CpG {cpg} associated with SNP {snp}', weight='bold')
 
     # Creation of one common legend for all
     lines, labels = [], []
