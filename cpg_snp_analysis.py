@@ -134,7 +134,7 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.'
             x = x - 0.08
 
 
-    save_plot_report(f'{dir_out}/Multiplots_{cpg}.png', fig, file=None)
+    save_plot_report(f'Multiplots_{cpg}.png', fig, output=dir_out, file=None)
     # fig.savefig(f'{dir_out}/Multiplots_{cpg}.png')
 
 
