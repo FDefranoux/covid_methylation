@@ -28,7 +28,6 @@ def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', widt
 
     var_ls = {x for x in [x_var, hue_var, hatch_var, width_var] if x}
     value_df = df[var_ls].drop_duplicates()
-    value_df.sort_values('p')
 
     if (hatch_var != None) & (hatch_dict == {}):
         hatch_list = ['+', 'O', '.', '*', '-', '|', '/', '\ ', 'x', 'o',]
