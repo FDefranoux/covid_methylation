@@ -80,11 +80,11 @@ def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.'
     ax[0,0].set(title='Symptom severity')
     boxplot_customized(cpg_df, 'Genotype', 'log_lik_ratio', hue_var='Genotype',
                                  dict_colors=repl_colors['Genotype'],
-                                 width_var=None, ax=ax[0,1], hatch_dict=dict_hatch)
+                                 width_var=None, ax=ax[0,1], hatch_dict=dict_hatch, dodge=False)
     ax[0,1].set(title='Genotype correlation')#, xticklabels=replace_val['Genotype'].values())
     boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='Genotype',
                                  dict_colors=repl_colors['Genotype'], width_var=None,
-                                 hatch_var='phenotype', ax=ax[0,2], hatch_dict=dict_hatch, dodge=False)
+                                 hatch_var='phenotype', ax=ax[0,2], hatch_dict=dict_hatch)
     ax[0,2].set(title='Genotype correlation X Symptom severity')
     if not cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']].empty:
         boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'phenotype',
