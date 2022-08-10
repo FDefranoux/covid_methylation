@@ -37,8 +37,8 @@ def grep_target_readnames(file, list_readnames, nanopolish_input, output='', con
 
 
 def merge_basefile_and_nanofile(base_file, colnames_basefile, target_snp,
-                                nanopolish_input, list_snp=[], title='',
-                                fine_mapping=True):
+                                 nanopolish_input, list_snp=[], title='',
+                                 fine_mapping=True):
     # Opening base calling file
     base_df = pd.read_table(base_file, header=None, names=colnames_basefile)
     base_df[['chromosome', 'pos', 'ref', 'alt']
@@ -97,3 +97,54 @@ def main(dir, nanopolish_input, target_snp, file_snps='', lsb=False, fine_mappin
 if __name__ == '__main__':
     main(dir=dir, nanopolish_input=nanopolish_input, target_snp = target_snp,
          file_snps=file_snps, lsb=lsb, fine_mapping=False)
+
+
+def new_function(basefile, snp='', finemapped='', outdir='.'):
+    if not os.path.isdir(outdir):
+        os.makedirs(outdir)
+    table = pd.read_table(basefile)
+    print(table.head())
+    if finemapped:
+        fine_ls = pd.read_table(finemapped, header=None)[0].to_list()
+    print(fine_ls)
+    for file in table['sample_id'].unique():
+        if finemapped:
+            table[(table['sample_id'] == file) & (table[snp].isin(fine_ls))].to_csv(os.path.join(outdir, f'{file}.txt'), index=False, sep='\t')
+        else:
+            table[table['sample_id'] == file].to_csv(os.path.join(outdir, f'{file}.txt'), index=False, sep='\t')
+
+
+
+
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+before = pd.read_table('finemapped_readchr_count.txt', header=None, names=['file', 'before'])
+before[['file', 'chr']] = before['file'].str[2:-2].str.split("', '", expand=True)
+after = pd.read_table('finemapped_readchr_count_aftergrep.txt', header=0, names=['chr', 'after']).reset_index()
+after['file'] = after['index'].str[:-4].str.split('/', expand=True)[1]
+after.drop('index', axis=1, inplace=True)
+after = after[after['chr'].isin([str(n) for n in range(30)] + ['X', 'Y'])]
+
+n_bef = before.groupby('file').nunique()['chr'].sort_values()
+n_aft = after.groupby('file').nunique()['chr'].sort_values()
+
+bef_valid = n_bef[n_bef >= 22].index
+aft_valid = n_aft[n_aft >= 22].index
+
+len(set(bef_valid) - set(aft_valid))
+len(set(aft_valid) & set(bef_valid))
+
+err = pd.read_table('error_files_filtering.txt', header=None)[0].tolist()
+err = [ l[:-4] for l in err]
+wcoln = pd.read_table('wrong_col_numb_filtering.txt', header=None)[0].tolist()
+wcoln = [ l[:-4] for l in wcoln]
+
+all = pd.merge(after, before, on=['chr', 'file'])
+all['err'] = 'None'
+all.loc[all['file'].isin(err), 'err'] = 'other_err'
+all.loc[all['file'].isin(wcoln), 'err'] = 'wrong_col_numb'
+
+
+# NB if we wanto to control the quality of the analysis we need to control the bam files, the nanopolish (before and after grep) and their filtered
