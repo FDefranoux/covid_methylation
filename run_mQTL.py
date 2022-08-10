@@ -18,12 +18,6 @@ import re
 from math import ceil
 import subprocess
 
-# TODO: CHANGE SAVING OF OUTPUT FILES
-# - raw datas as median per patient / cpg/ Allele
-# - test in one table
-# - EVERYTHING in sql database
-# - IMPLEMENT CONTROLS SNP ANALYSIS
-#  - REPLACE BY NEXTFLOW SCRIPT!
 
 
 def arg_parsing():
@@ -165,12 +159,6 @@ def main(yaml_file, steps='all'):
     #
     #     os.system('bsub -w"done(merge*)" -Jplots -M {} "python3 methylation_analysis.py" ')
 
-
-        # Plotting
-        # if '3' in steps:
-        #     os.system('bsub -w"done(stats)" -Jplots -M {} "python3 methylation_analysis.py   "')
-        # else:
-        #     os.system('bsub -Jplots -M {} "python3 methylation_analysis.py   "')
 
 if __name__ == '__main__':
     main(**vars(arg_parsing()))
