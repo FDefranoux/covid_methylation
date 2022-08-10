@@ -16,6 +16,14 @@ from utils import *
 import time
 import re
 from math import ceil
+import subprocess
+
+# TODO: CHANGE SAVING OF OUTPUT FILES
+# - raw datas as median per patient / cpg/ Allele
+# - test in one table
+# - EVERYTHING in sql database
+# - IMPLEMENT CONTROLS SNP ANALYSIS
+#  - REPLACE BY NEXTFLOW SCRIPT!
 
 
 def arg_parsing():
@@ -84,14 +92,15 @@ def main(yaml_file, steps='all'):
         n = '-'.join([str(n) for n in time.localtime(time.time())[0:5]])
         out_dir = yml['output_directory'] + n
     os.makedirs(out_dir)
-    os.makedirs(os.path.join(out_dir, 'temp'))
-    temp_dir = os.path.join(out_dir, 'temp')
+    subdir_ls = ['per_file_filtering', 'per_chr_analysis', 'pval_plots', 'individual_plots']
+    for n, dir in enumerate(subdir_ls):
+        subdir_ls[n] = os.path.join(out_dir, dir)
+        os.makedirs(subdir_ls[n])
     os.system(f"mv {yaml_file[:-4]}_new.yml {out_dir}")
 
     # Verification of the list of files bam and nano
     nano_files = directory_to_file_list(yml['nanopolish_directory'])
     basecal_files = directory_to_file_list(yml['basecalling_directory'])
-    # initial_len_ls = (len(nano_files), len(basecal_files))
     nano_files, basecal_files = correspondance_list_files(nano_files, basecal_files, details=True)
     print(f'\nNumber of corresponding nano-basecalling files: {len(nano_files)}')
 
@@ -109,41 +118,54 @@ def main(yaml_file, steps='all'):
     # Defining the steps of the pipeline to run
     # TODO: Change the way the steps are managed
     if ('1' in steps) or ('all' in steps):
-        print('# STEP1')
+        print('# STEP1 -- BAM AND NANO FILES FILTERING')
         # Bam-basecalling file genotyped/filtered/merged with corresponding nanopolish file
-        os.chdir(temp_dir)
+        os.chdir(subdir_ls[0])
         for n, (nano, base_call) in enumerate(zip(nano_files, basecal_files)):
             assert os.path.basename(base_call).split('.')[0] == os.path.basename(nano).split('.')[0], f'The files are not corresponding {base_call, nano}'
             file_title = os.path.basename(base_call).split('.')[0]
             mem = find_mem_request(nano=nano, base=base_call)
             print(n, base_call, nano, mem, flush=True)
-            os.system(f'bsub -Jbamnano{n} -M{mem} -ebamnano_{file_title}.out -obamnano_{file_title}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
+            os.system(f'bsub -Jbamnano{n} -M{mem} -obamnano_{file_title}.out "python3 {ABS_PATH}/bam_nano_filtering.py  {base_call} {nano} {target_snp}"')
 
         # Merging all files together
         first = os.path.basename(basecal_files[0]).split('.')[0]
-        os.system(f'bsub -w"done(bamnano0)" -Jhead -e /dev/null -o /dev/null "head -n1 Filtered_nano_bam_files_{first}.csv > ../Filtered_nano_bam_files.csv"')
-        os.system('bsub -w"ended(bamnano*)" -Jverif -e /dev/null -o /dev/null "grep LSBATCH bamnano_*.out -A5 | grep -v LSBATCH | grep -v python3 > SUMMARY.out"')
-        os.system('bsub -w"done(verif)" -M1000 -Jmerge -emerge.out -omerge.out "tail -n+2 -q Filtered_nano_bam_files_* >> ../Filtered_nano_bam_files.csv"')
-        os.system('bsub -w"done(merge)" -M1000 -Jrm "rm -f Filtered_nano_bam_files_*"')
+        os.system(f'bsub -w"done(bamnano0)" -Jhead -o /dev/null "head -n1 {subdir_ls[0]}/Filtered_nano_bam_files_{first}.csv > {out_dir}/Filtered_nano_bam_files.csv"')
+        os.system(f'bsub -w"ended(bamnano*)" -Jverif -o /dev/null "grep LSBATCH bamnano_*.out -A5 | grep -v LSBATCH | grep -v python3 > {out_dir}/SUMMARY_filtering.out"')
+        os.system(f'bsub -w"done(verif)" -M1000 -Jmerge -o merge.out "tail -n+2 -q {subdir_ls[0]}/Filtered_nano_bam_files_* >> {out_dir}/Filtered_nano_bam_files.csv"')
+        os.system(f'bsub -w"done(merge)" -M1000 -Jrm "rm -f {subdir_ls[0]}/Filtered_nano_bam_files_*"')
 
-    if ('2' in steps) or ('all' in steps):
-        print('# STEP2')
-        # First we need to split the file into chromosomes
-        if not os.path.exists('per_chr'):
-            os.makedirs('per_chr')
-        os.system(f'bsub -w"done(merge)" -M 1000 -Jsplit -esplit.out -osplit.out "bash {ABS_PATH}/split_filter.sh ../Filtered_nano_bam_files.csv per_chr"')
-        for chr in range(1,25):
-            print(chr)
-            os.system(f'bsub -w"done(split)" -M 8000 -Jcpg_{chr} -eper_chr/cpg_{chr}.out -oper_chr/cpg_{chr}.out "python3 {ABS_PATH}/cpg_snp_analysis.py Filtered_nano_bam_files.csv_chr_{chr}.csv -oper_chr -u {target_snp}"')
-        # TODO implement the merging of the analysis files
-        # TODO manage if file is empty
-        os.system('bsub -w"ended(cpg*)" -Jverifcpg -e/dev/null -o/dev/null "grep LSBATCH per_chr/cpg_*.out -A5 | grep -v LSBATCH | grep -v python3 > per_chr/SUMMARY.out"')
-        for file in ['Counts_Diff_means.csv', 'Mann_Whitney.csv', 'Spearmann_corr.csv' ]:
-            os.system(f'bsub -w"done(verifcpg)" -Jhead{file} -e/dev/null -o/dev/null "head -n1 per_chr/Filtered_nano_bam_files.csv_chr_1_{file} > ../All_{file}"')
-            os.system(f'bsub -w"done(head{file})" -M1000 -Jmerge{file} -e/dev/null -o/dev/null "tail -n+2 -q per_chr/Filtered_nano_bam_files.csv_chr_*_{file} >> ../All_{file}"')
+    # if ('2' in steps) or ('all' in steps):
+    #     list_snp_file = yml['list_snp_file']
+    #     print('# STEP2 -- STATISTICAL ANALYSIS')
+    #     os.chdir(subdir_ls[1])
+    #     # TODO: Reorganize the output files
+    #     # First we need to split the file into chromosomes
+    #     os.system(f'bsub -w"done(merge)" -M 1000 -Jsplit -osplit.out "bash {ABS_PATH}/split_filter.sh {out_dir}/Filtered_nano_bam_files.csv {subdir_ls[1]}"')
+    #     for chr in range(1,25):
+    #         os.system(f'bsub -w"done(split)" -M 8000 -Jcpg_{chr} -o{subdir_ls[1]}/cpg_{chr}.out "python3 {ABS_PATH}/cpg_snp_analysis.py {subdir_ls[1]}/Filtered_nano_bam_files.csv_chr_{chr}.csv -o {subdir_ls[1]} -u {target_snp} -f {list_snp_file}"')
+    #     # TODO implement the merging of the analysis files
+    #     # TODO manage if file is empty
+    #     os.system(f'bsub -w"ended(cpg*)" -Jverifcpg -o/dev/null "grep LSBATCH {subdir_ls[1]}/cpg_*.out -A5 | grep -v LSBATCH | grep -v python3 > {out_dir}/SUMMARY_analysis.out"')
+    #     for file in ['Counts_Diff_means.csv', 'Mann_Whitney.csv', 'Spearmann_corr.csv' ]:
+    #         os.system(f'bsub -w"done(verifcpg)" -Jhead{file} -o/dev/null "head -n1 {subdir_ls[1]}/Filtered_nano_bam_files.csv_chr_1_{file} > {out_dir}/All_{file}"')
+    #         os.system(f'bsub -w"done(head{file})" -M1000 -Jmerge{file} -o/dev/null "tail -n+2 -q {subdir_ls[1]}/Filtered_nano_bam_files.csv_chr_*_{file} >> {out_dir}/All_{file}"')
+    #         # TODO: generalize following line
+    #         # os.system("bsub -M 1000 -o /dev/null 'cut -d, -f3,14,15,17 Filtered_nano_bam_files.csv | sort -u > snp_associated_cpg.csv'")
 
-    if ('3' in steps) or ('all' in steps):
-        print('# STEP3 -- Not implemented YET')
+    # if ('3' in steps) or ('all' in steps):
+    #     print('# STEP3 -- PLOTTING')
+    #     file_ls = ['All_Mann_Whitney.csv', 'All_Spearmann_corr.csv']
+    #     file_ls = [os.path.join(out_dir, file) for file in file_ls]
+    #     files = '--'.join(file_ls)
+    #     ABS_PATH + '/methylation_analysis.py'
+    #
+    #     os.system(f'bsub -Jplots -M10000  "python3 /nfs/research/birney/users/fanny/covid_nanopore/methylation_analysis.py All_Mann_Whitney.csv--All_Spearmann_corr.csv -s control_snp -p 6.5"')
+    #
+    #
+    #     os.system('bsub -w"done(merge*)" -Jplots -M {} "python3 methylation_analysis.py" ')
+
+
         # Plotting
         # if '3' in steps:
         #     os.system('bsub -w"done(stats)" -Jplots -M {} "python3 methylation_analysis.py   "')
