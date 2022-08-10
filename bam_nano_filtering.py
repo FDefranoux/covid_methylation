@@ -8,7 +8,7 @@ import argparse
 ################################################################################
 
 ## For manipulation of the BAM_base_calling_files
-def genotype_frombasecalling(file, target_snp, t=0.90, print_counts=False, filtering=True, **kwargs):
+def genotype_frombasecalling(file, target_snp, t=0.90, print_counts=False, filtering=True, min=5, **kwargs):
     df = pd.read_table(file, dtype='object')
     df[['chromosome', 'pos', 'ref', 'alt']
        ] = df[target_snp].str.split(':', expand=True)
@@ -27,8 +27,6 @@ def genotype_frombasecalling(file, target_snp, t=0.90, print_counts=False, filte
             genome[haplo] = 0
         # Transforming the values in percentage of total
         genome[str(h)] = genome[haplo].astype(int) / sum
-    if print_counts:
-        print('\nGenome Counts', genome.to_markdown(), '\n')
 
     # Discard the unsignificant values
     genome = genome[genome > 1 - t]
@@ -48,33 +46,41 @@ def genotype_frombasecalling(file, target_snp, t=0.90, print_counts=False, filte
 
     # Filtering
     if filtering:
-        df = filtering_datas(df, **kwargs)
+        df = filtering_datas(df, target_snp, min=min, **kwargs)
     df[['chromosome', 'pos', 'ref', 'alt']] = df[target_snp].str.split(':', expand=True)
+    if print_counts:
+        print('\nGenome Counts\n', df['Genotype'].value_counts().to_markdown(), '\n')
 
     return df
 
 
-def filtering_datas(df):
+def filtering_datas(df, target_snp, min=5):
     log = {}
-    log['initial shape'] = str(df.shape)
+    log['initial nrows'] = df.shape[0]
 
     # Filtering out the deletions
     new_df = df[df['ref'].str.len() < 2].copy()
     log['deletions'], shape_diff = int(df.shape[0] - new_df.shape[0]), new_df.shape[0]
 
-    # Filtering out the miss-called alleles
+    # Removing cpgs with not enough reads
+    n_reads = df.groupby(['sample_id', target_snp])['read_name'].nunique()
+    low_reads_snps = n_reads[n_reads < min].dropna(how='all').reset_index()[target_snp]
+    if len(low_reads_snps) > 0: new_df = new_df[new_df[target_snp].isin(low_reads_snps) == False]
+    log['not enough reads'], shape_diff = int(shape_diff - new_df.shape[0]), new_df.shape[0]
+
+    # Filtering out the miss-called alleless
     # (ie haplotype not corresponding nor to ref nor to alt)
     new_df = new_df[new_df['Genotype'].str.contains('2') == False]
-    log['miss-called'], shape_diff = int(shape_diff - new_df.shape[0]), new_df.shape[0]
+    log['miss-called (genotype=2)'], shape_diff = int(shape_diff - new_df.shape[0]), new_df.shape[0]
 
     # Filtering out the reads_names associated with several CHR
     double_chr = new_df.groupby(
-        ['read_name', 'chromosome']).size().unstack().dropna(thresh=2).index
-    if len(double_chr) > 0: new_df.drop(double_chr, inplace=True)
+        ['read_name', 'chromosome']).size().unstack().dropna(thresh=2).reset_index()['read_name']
+    if len(double_chr) > 0: new_df = new_df[new_df['read_name'].isin(double_chr) == False]
     log['read_name in several chr'], shape_diff = int(shape_diff - new_df.shape[0]), new_df.shape[0]
 
-    log['final shape'] = str(new_df.shape)
-    print(log)
+    log['final nrows'] = new_df.shape[0]
+    print('\nFiltering log:\n', pd.DataFrame(log).to_markdown())
     return new_df
 
 
@@ -129,10 +135,10 @@ def nanopolish_formatting(nanopolish_file, list_readnames, control=True):
     return nano
 
 
-def merge_basefile_and_nanofile(basecalling_file, nanopolish_file, target_snp):
+def merge_basefile_and_nanofile(basecalling_file, nanopolish_file, target_snp, t=0.90, min=5, print_counts=False, filtering=True):
 
     # Opening base calling file and generating genotype (+filtering)
-    called_base_df = genotype_frombasecalling(basecalling_file, target_snp, t=0.90, print_counts=False, filtering=True)
+    called_base_df = genotype_frombasecalling(basecalling_file, target_snp, t=t, print_counts=print_counts, filtering=filtering, min=min)
 
     # Selecting readnames of interest from nanopolish file+formatting the table
     nano_df = nanopolish_formatting(nanopolish_file, list(called_base_df['read_name'].unique()), control=True)
@@ -155,14 +161,18 @@ def merge_basefile_and_nanofile(basecalling_file, nanopolish_file, target_snp):
 ################################################################################
 ###############################  MAIN  #########################################
 ################################################################################
-def main(basecalling_file, nanopolish_file, target_snp):
+def main(basecalling_file, nanopolish_file, name='', target_snp='covid_snp', ratio=0.90, min=5, print_counts=True, filtering=True):
+    if not name:
+        name = os.path.basename(basecalling_file).split(".")[0]
     try:
-        merge = merge_basefile_and_nanofile(basecalling_file, nanopolish_file, target_snp)
+        print(basecalling_file, nanopolish_file, target_snp, flush=True)
+        merge = merge_basefile_and_nanofile(basecalling_file, nanopolish_file, target_snp, t=ratio, min=min, print_counts=print_counts, filtering=filtering)
         # Saving individual files
-        merge.to_csv(f'Filtered_nano_bam_files_{os.path.basename(basecalling_file).split(".")[0]}.csv',
+        # QUESTION: As median or not ?
+        merge.to_csv(f'Filtered_nano_bam_files_{name}.csv',
                     mode='w', header=True, index=False)
     except Exception as err:
-        print(basecalling_file, 'ERROR', err, flush=True)
+        print(name, 'ERROR', err, flush=True)
 
 
 if __name__ == '__main__':
@@ -170,8 +180,14 @@ if __name__ == '__main__':
         + ' - Association of the basecalling file from BAM with nanopolish files')
     parser.add_argument('basecalling_file', type=str, help='basecalling file')
     parser.add_argument('nanopolish_file', type=str, help='nanopolish file')
-    parser.add_argument('target_snp', type=str, help='which SNP (covid or control)')
+    parser.add_argument('-n', '--name', type=str, help='filename', default='')
+    parser.add_argument('-s', '--target_snp', type=str, help='which SNP (covid or control)', default='covid_snp')
+    parser.add_argument('-t', '--ratio', type=float, help='ratio for deciding genome', default=0.9)
+    parser.add_argument('-m', '--min', type=float, help='minimal number of reads for validating a cpg', default=5)
+    parser.add_argument('-f', '--filtering', type=bool, help='Filter the datas ?', default=True)
+    parser.add_argument('-c', '--print_counts', type=bool, help='Print counts of genotype', default=True)
     args = parser.parse_args()
+    print('The arguments are: ', vars(args), '\n')
     main(**vars(args))
 
 
