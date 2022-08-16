@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import socket
 import numpy as np
+import sqlite3
 host = socket.gethostname()
 if 'Fanny' in host:
     PATH_UTILS = '/home/fanny/Work/EBI/Utils'
@@ -13,131 +14,90 @@ else:
 sys.path.insert(0, PATH_UTILS)
 from utils import *
 import argparse
-import seaborn as sns
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.offsetbox import (AnchoredOffsetbox, DrawingArea, HPacker,
-                                  TextArea)
+# import seaborn as sns
+# import matplotlib.pyplot as plt
+# import matplotlib.patches as mpatches
+# from matplotlib.offsetbox import (AnchoredOffsetbox, DrawingArea, HPacker,
+#                                   TextArea)
+import pingouin as pg
+from tqdm import tqdm
+OUTDATED_IGNORE=1
 
-def boxplot_customized(df, x_var, y_var, hue_var=None, dict_colors='tab10', width_var=None, width_dict={}, hatch_var=None, hatch_dict={}, ax=None, **kwargs):
-    df = df[df[hue_var].isin(dict_colors.keys())]
-
-    # Creation of the plot
-    # plt.rcParams['patch.edgecolor'] = 'black'
-    g2 = sns.boxplot(data=df, x=x_var, y=y_var, orient='v', hue=hue_var, palette=dict_colors, ax=ax, color='black', **kwargs)
-
-    var_ls = {x for x in [x_var, hue_var, hatch_var, width_var] if x}
-    value_df = df[var_ls].drop_duplicates()
-
-    if (hatch_var != None) & (hatch_dict == {}):
-        hatch_list = ['+', 'O', '.', '*', '-', '|', '/', '\ ', 'x', 'o',]
-        hatch_dict = {val: hatch_list[n] for n, val in enumerate(value_df[hatch_var].unique())}
-    if (width_var != None) & (width_dict == {}):
-        width_dict = {val: n*2 + 1 for n, val in enumerate(value_df[width_var].unique())}
-
-    value_df['Hue'] = value_df[hue_var].replace(dict_colors)
-
-    value_df.index = g2.artists
-    for art in g2.artists:
-        if hatch_var:
-            value_df['Hatch'] = value_df[hatch_var].replace(hatch_dict)
-            art.set_hatch(value_df.loc[art, 'Hatch'])
-        if width_var:
-            value_df['Width'] = value_df[width_var].replace(width_dict)
-            art.set_linewidth(value_df.loc[art, 'Width'])
-    return g2
+# TODO: Modify the stat function to have the double ttests...DOUBLE ???
 
 
-def setup_customizedboxplot_cpg_analysis(cpg_df, unit='control_snp', dir_out='.', dict_colors=None):
-    # General modification of the datas
-    cpg_df = cpg_df.copy()
-    cpg = str(cpg_df['cpg'].unique())[2:-2]
-    snp = str(cpg_df[unit].unique().tolist())[2:-2]
-    ref, alt = snp.split(':')[-2:]
-    replace_dict = {'haplotype': {'ref': ref, 'alt': alt}, 'Genotype': {'0/0': f'{ref}/{ref}', '0/1': f'{ref}/{alt}', '1/1': f'{alt}/{alt}'}}
-    cpg_df.replace(replace_dict, inplace=True)
+def stat_test(df, x, y, test, n_min=5, data='', **kwargs):
+    dict_rename = {'corr': [pg.corr, {'r':'coeff'}],
+                   'mann_whitney': [pg.mwu, {'U-val': 'coeff'}],
+                   'ttest': [pg.ttest, {'T':'coeff'}]}
 
-    # Aesthetic parameters
-    dict_hatch = {'Severe': '||', 'Mild': '/'}
-    if not dict_colors:
-        dict_colors = {'Genotype': {'0/0':'#1678F5', '0/1':'#2aa69a', '1/1':'#3ED43E'},
-                       'haplotype': {'ref':'#1678F5', 'alt':'#3ED43E'},
-                       'phenotype': {'Mild':'#f0f0f5', 'Severe':'#c2c2d6'}}
-
-    # Modification of the color dataframe to fit the replacement
-    repl_colors = {}
-    for key, dict in dict_colors.items():
-        if replace_dict.get(key):
-            repl_colors.update({key: {replace_dict.get(key).get(k): dict_colors.get(key).get(k) for k in dict.keys() if replace_dict.get(key).get(k) != None}})
-        else:
-            repl_colors.update({key:{k: dict_colors.get(key).get(k) for k in dict.keys() }})
-    cpg_df.sort_values(['phenotype', 'Genotype', 'haplotype'], inplace=True)
-    # Creation of the plot
-    fig, ax = plt.subplots(2, 3, figsize=(17,10))
-    boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='phenotype',
-                                 dict_colors=repl_colors['phenotype'], width_var=None,
-                                 hatch_var='phenotype', ax=ax[0,0], hatch_dict=dict_hatch)
-    ax[0,0].set(title='Symptom severity')
-    boxplot_customized(cpg_df, 'Genotype', 'log_lik_ratio', hue_var='Genotype',
-                                 dict_colors=repl_colors['Genotype'],
-                                 width_var=None, ax=ax[0,1], hatch_dict=dict_hatch, dodge=False)
-    ax[0,1].set(title='Genotype correlation')#, xticklabels=replace_val['Genotype'].values())
-    boxplot_customized(cpg_df, 'phenotype', 'log_lik_ratio', hue_var='Genotype',
-                                 dict_colors=repl_colors['Genotype'], width_var=None,
-                                 hatch_var='phenotype', ax=ax[0,2], hatch_dict=dict_hatch)
-    ax[0,2].set(title='Genotype correlation X Symptom severity')
-    if not cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']].empty:
-        boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'phenotype',
-                                       'log_lik_ratio', hue_var='phenotype',
-                                       dict_colors=repl_colors['phenotype'],
-                                       hatch_var='phenotype', width_var=None,
-                                       ax=ax[1,0], hatch_dict=dict_hatch)
-        ax[1,0].set(title='Heterozygous Symptom Severity')
-        boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'haplotype', 'log_lik_ratio',
-                                      hue_var='haplotype', dict_colors=repl_colors['haplotype'],
-                                      hatch_var=None, width_var=None, ax=ax[1,1],
-                                      hatch_dict=dict_hatch, dodge=False)
-        ax[1,1].set(title='Heterozygous Allele difference') #, xticklabels=replace_val['haplotype'].values())
-        boxplot_customized(cpg_df[cpg_df['Genotype'] == replace_dict['Genotype']['0/1']], 'phenotype', 'log_lik_ratio',
-                                      hue_var='haplotype', dict_colors=repl_colors['haplotype'],
-                                      hatch_var='phenotype', width_var=None, ax=ax[1,2],
-                                      hatch_dict=dict_hatch)
-        ax[1,2].set(title='Het. Allele difference X Symptom severity')
+    if (df.empty) or (df[x].std() == 0) or (df[x].nunique() < 2) or (df[y].std() == 0) or (df[y].nunique() < 2) or (df.shape[0] < n_min):
+       res = pd.DataFrame(columns=['cpg', 'data', 'coeff', 'p-val', 'x', 'y'])
     else:
-        fig.delaxes(ax[1, 0])
-        fig.delaxes(ax[1, 1])
-        fig.delaxes(ax[1, 2])
-    plt.suptitle(f'CpG {cpg} associated with SNP {snp}', weight='bold')
+        try:
+                res = dict_rename[test][0](df[x], df[y],**kwargs
+                    ).rename(columns=dict_rename[test][1])
+                res['x'] = x
+                res['y'] = y
+                res['cpg'] = list(df['cpg'].unique())[0]
+                res['data'] = data
+        except Exception as err:
+            print(err)
+            print(df)
+            res = pd.DataFrame(columns=['cpg', 'data', 'coeff', 'p-val', 'x', 'y'])
 
-    # Creation of one common legend for all
-    lines, labels = [], []
-    x = 0.6
-    for a in fig.axes:
-        Line, Label = a.get_legend_handles_labels()
-        a.get_legend().remove()
-        if (set(Label) & set(labels)) == set():
-            lines.extend(Line)
-            labels.extend(Label)
-            label_title = cpg_df[cpg_df == Label[0]].dropna(how='all', axis=1).columns.tolist()[0]
-            if label_title == 'phenotype':
-                fig.legend(handles=[mpatches.Patch(facecolor=val, label=key, lw=1, ec=sns.color_palette('dark')[-3],
-                                         hatch=dict_hatch[key]) for key, val in dict_colors['phenotype'].items()],
-                                         title='Phenotype', loc='center left', bbox_to_anchor=(0.9, x))
-            elif label_title == 'base_called':
-                label_title = 'Haplotype'
-                fig.legend(Line, Label, loc='center left', bbox_to_anchor=(0.9, x), title=label_title)
-            else:
-                fig.legend(Line, Label, loc='center left', bbox_to_anchor=(0.9, x), title=label_title)
-            x = x - 0.08
+    return res[['cpg', 'data', 'coeff', 'p-val', 'x', 'y']].reset_index()
 
 
-    save_plot_report(f'Multiplots_{cpg}.png', fig, output=dir_out, file=None)
-    # fig.savefig(f'{dir_out}/Multiplots_{cpg}.png')
+def Stats_MultiTests(df, measure, target_snp, cpg_ls=[], output='Multi_Stats', n_min=5, pval=0.05):
+    df = df.copy()
+    df = df.sort_values(by=['Genotype', 'phenotype'])
+    df = df.sort_values(by=['haplotype'], ascending=False)
+    for col in ['Genotype', 'phenotype', 'haplotype']:
+        df[f'{col}_test'] = pd.factorize(df[col])[0]
+    if not cpg_ls:
+        cpg_ls = df['cpg'].unique()
+    results = pd.DataFrame()
+    print('Running through the CpGs\n')
+    for cpg in tqdm(cpg_ls):
+        samp = df[df['cpg'] == cpg].drop(target_snp, axis=1).drop_duplicates()
+        if (samp.shape[0] > 1):
+            results = results.append(stat_test(samp, 'Genotype_test', measure, test='corr', data='all', method='spearman'))
+            results = results.append(stat_test(samp, 'phenotype_test', measure, test='mann_whitney', data='all'))
+
+        # Mann_Whitney tests on heterozygotes
+        samp_het = samp[samp['Genotype'] == '0/1']
+        if (samp_het.shape[0] > 1):
+            results = results.append(stat_test(samp_het, 'phenotype_test', measure, test='mann_whitney', data='het'))
+            results = results.append(stat_test(samp_het, 'haplotype_test', measure, test='mann_whitney', data='het'))
+        del samp_het
+
+        # T-test between alt and ref for Mild and Severe specific
+        for val in samp['phenotype'].unique():
+            samp_ph = samp[samp['phenotype'] == val].drop_duplicates()
+            results = results.append(stat_test(samp_ph, 'Genotype_test', measure, test='corr', data=val, method='spearman'))
+            samp_hetph = samp_ph[samp_ph['Genotype'] == '0/1'].drop_duplicates()
+            samp_hetph = samp_hetph.set_index(['cpg', 'sample_id', 'phenotype', 'Genotype', 'haplotype'])[measure].unstack().dropna(thresh=2).reset_index()
+            res = stat_test(samp_hetph, 'alt', 'ref', test='ttest', data=f'het-{val}', n_min=n_min)
+            results = results.append(res)
+
+    # Formatting forsaving
+    results.rename(columns={'index':'stat', 'x':'variable', 'y':'measure'}, inplace=True)
+    results.loc[results['variable'] == 'alt', ['variable', 'measure']] = ['alt-ref', measure]
+    results.to_csv(output + '.csv', index=False)
+
+    # Prinout of significative results
+    print(f'Number of significative cpgs at pvalue threshold {pval} (non-corrected)\n')
+    print(results[results['p-val'] < pval].astype(str).groupby(['variable', 'stat', 'data']).size().unstack().sort_index(axis=1, key=lambda x: x.str.lower()).reset_index(level='stat').reindex(['phenotype_test', 'Genotype_test', 'haplotype_test', 'alt-ref']).reset_index().fillna('').to_markdown())
 
 
+### OLD FUNCTIONS
 def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0.05):
+    df = df.copy()
     if not df.empty:
+        df.sort_values('Genotype', inplace=True)
         stat = Stats(df)
+        stat.define_dummies(vars)
         try:
             res_mw = stat.multiple_mann_whitney(measure=measure, var=vars)
             if not res_mw.empty:
@@ -148,12 +108,17 @@ def MannWhitney_Spearman_stats(df, measure, vars,  output='', add_col={}, pval=0
         except Exception as err:
             print('MWU', err)
         try:
-            res_sp = stat.Spearman_correlation(measure=measure, var=vars)
-            if add_col: res_sp[list(add_col.keys())] = list(add_col.values())
-            res_sp.dropna(subset=['p-val']).reset_index().to_csv(output+'Spearmann_corr.csv',
-                                                mode='a', header=False, index=False)
+            for var in vars:
+                print(stat.dum[var].unique(), df[var].unique())
+                res_sp = pg.corr(stat.dum[var], df[measure], method="spearman").drop('CI95%', axis=1)
+                add_col['var'] = var
+                # res_sp = stat.Spearman_correlation(measure=measure, var=vars)
+                if add_col: res_sp[list(add_col.keys())] = list(add_col.values())
+                print(res_sp.head())
+                res_sp.dropna(subset=['p-val']).reset_index().to_csv(output+'Spearmann_corr.csv',
+                                                    mode='a', header=False, index=False)
         except Exception as err:
-            print('SP', err)
+            print('ERR SP', err)
 
 
 def count_and_mean_values(df, vars, mean_measure):
@@ -165,7 +130,7 @@ def count_and_mean_values(df, vars, mean_measure):
     return count_mean
 
 
-def Loop_stats(df, unit, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls=[]):
+def Loop_stats(df, target_snp, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], cpg_ls=[]):
 
     if not cpg_ls:
         cpg_ls = df['cpg'].unique()
@@ -176,12 +141,12 @@ def Loop_stats(df, unit, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], 
     for cpg in cpg_ls:
 
         if cpg == cpg_ls[0]:
-            pd.DataFrame(columns=['index', 'p-val', 'cpg', 'data']).to_csv(output + 'Mann_Whitney.csv', mode='w', index=False)
-            pd.DataFrame(columns=['index', 'rho', 'p-val', 'cpg', 'data']).to_csv(output + 'Spearmann_corr.csv', mode='w', index=False)
+            pd.DataFrame(columns=['test', 'pval', 'cpg', 'data']).to_csv(output + 'Mann_Whitney.csv', mode='w', index=False)
+            pd.DataFrame(columns=['n', 'rho', 'pval', 'power', 'cpg', 'data', 'test']).to_csv(output + 'Spearmann_corr.csv', mode='w', index=False)
             pd.DataFrame(columns=count_cols).to_csv(f'{output}Counts_Diff_means.csv', mode='w', header=True, index=False)
 
         samp = df[df['cpg'] == cpg].copy()
-        samp = samp[samp.drop(unit, axis=1).duplicated() == False]
+        samp = samp[samp.drop(target_snp, axis=1).duplicated() == False]
         if (samp.shape[0] > 1):
             if not np.isnan(samp['log_lik_ratio'].std()) or (samp['log_lik_ratio'].std() == 0):
 
@@ -205,110 +170,90 @@ def Loop_stats(df, unit, output='', phen_ls=['Severe', 'Mild'], gen_ls=['0/1'], 
 
 
 # MAIN
-def main(file, unit, output_dir='.', gen_ls=['0/1'], phen_ls=['Mild', 'Severe'], list_snp_file=''):
+def main(file_db, target_snp='covid_snp', chr=None, output_dir='.', n_min=5, pval=0.05, zscore=3):
+    # Create output path
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     # Opening file
-    all_df = pd.read_csv(file, dtype='object')
+    # db = sqlite3.connect(file_db)
+    # if chr:
+    #     all_df = pd.read_sql(f"SELECT * FROM median_datas WHERE chromosome IS {chr}", con=db)
+    # else:
+    #     all_df = pd.read_sql("SELECT * FROM median_datas", con=db)
 
-    # TODO ERASE ???:
-    print('Colnames in df: ', all_df[(all_df == all_df.columns)].dropna(how='all').shape[0], flush=True)
-    all_df = all_df[(all_df == all_df.columns) == False].dropna(how='all')
-    print('\nNumber of rows with wrong genotype: ', all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1']) == False].shape[0], flush=True)
-    all_df = all_df[all_df['Genotype'].isin(['0/0', '0/1', '1/1'])]
-    if list_snp_file:
-        snp_ls = pd.read_table(list_snp_file, header=None)[0].tolist()
-        print('\nNumber of rows with wrong SNPs: ', all_df[(all_df[unit].isin(snp_ls) == False)].shape[0], flush=True)
-        all_df = all_df[(all_df[unit].isin(snp_ls))]
-    print('\nNumber of duplicated lines: ', all_df[all_df.duplicated(keep=False)].shape[0], flush=True)
-    del snp_ls
-    all_df = all_df[all_df.duplicated() == False]
-    all_df['log_lik_ratio'] = all_df['log_lik_ratio'].astype(float)
 
+#### Temporary solution
+    file_db = '/home/fanny/Work/EBI/covid_nanopore/covid_snp_March2022/Filtered_nano_bam_files.csv'
+    target_snp='covid_snp'
+    chr = 12
+    all_df = pd.read_csv(file_db)
+    all_df.groupby('chromosome').size()
+    all_df=all_df[all_df['chromosome']== chr]
+    print(all_df.head(2).to_markdown())
+    # all_df.drop('Unnamed: 0', axis=1, inplace=True)
+
+    all_df = all_df.groupby(['phenotype', 'sample_id', 'chromosome', 'cpg', target_snp, 'Genotype', 'haplotype']).median().reset_index()
+
+    # OUTLIERS DETECTION
     # QUESTION: Where should we do the outliers detection ?
     stat_raw = Stats(all_df[['log_lik_ratio']])
-    print('\nOutliers:', stat_raw.outliers.shape[0]/all_df[['log_lik_ratio']].shape[0], flush=True)
+    stat_raw.no_outliers(zscore_thresh=zscore)
+    print('\nOutliers:', round(stat_raw.outliers.shape[0]/all_df[['log_lik_ratio']].shape[0], 3), '%', flush=True)
     all_df = all_df.loc[stat_raw.no_outliers.index]
+    Stats_MultiTests(all_df, 'log_lik_ratio', 'covid_snp', cpg_ls=[], output=os.path.join(output_dir, f'Multi_Stats_{chr}'), n_min=n_min, pval=pval)
 
-    # Median over the read_name with same Allele calling
-    # QUESTION: Before doing the median, should we delete the cpgs/snps with not enough counts for one file ?
-    median_df = all_df.groupby(['phenotype', 'sample_id', 'chromosome', 'cpg',
-                                    unit, 'Genotype', 'haplotype']).median().reset_index()
-    del all_df
-    median_df = median_df.sort_values(by=['haplotype'], ascending=False)
-    median_df = median_df.sort_values(by=['chromosome', unit, 'Genotype', 'phenotype'])
+    # Old function
+    # Loop_stats(all_df, target_snp, gen_ls=['0/1'], phen_ls=['Mild', 'Severe'], output=f'{os.path.join(output_dir, os.path.basename(file)[:-4])}_')
 
-    # Filter
-    # snp_counts = median_df.groupby([unit, 'Genotype']).size().unstack()
-    # cpg_counts = median_df.groupby(['cpg', unit, 'Genotype']).size().unstack()
-    # cpg_counts_10 = cpg_counts[cpg_counts > 10].dropna(how= 'all').index.levels[0]
-
-    # Loop_stats(median_df, unit, gen_ls=gen_ls, phen_ls=phen_ls, output=f'{os.path.join(output_dir, os.path.basename(file)[:-4])}_')
-    cpg_ls = ['21:33243685:1', '21:33247116:1', '17:45501201:2', '11:16996188:1',
-              '1:85220632:1', '15:43591259:1', '12:112925195:1', '19:10354080:3',
-              '10:79535851:1', '6:31133406:2', '9:133262493:1', '13:27151562:1',
-              '19:50314700:1', '15:43691102:3', '3:45847444:1', '18:62362967:1',
-              '1:155220731:1', '13:41393886:2', '12:112935779:1', '18:70635452:1',
-              '17:81597736:2', '10:79491025:1', '11:72864523:1', '6:31142922:2',
-              '9:133286263:1', '14:62083099:1', '3:45847362:1', '14:103504667:4',]
-    cpg_ls += ['21:33242527:1', '17:46065976:1', '21:33229986:3', '3:45848456:1',
-               '12:112925744:1', '17:46768336:3', '9:133271878:1', '1:155209089:1',
-               '9:133271842:1', '6:33069193:2', '21:33226777:1']
-
-    for cpg in set(cpg_ls):
-        cpg_df = median_df[median_df['cpg'] == cpg]
-        if not cpg_df.empty:
-            setup_customizedboxplot_cpg_analysis(cpg_df, unit=unit, dir_out='plots', dict_colors=None)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
         + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
-    parser.add_argument('file', type=str, help='filtered working file')
+    parser.add_argument('file_db', type=str, help='filtered db')
+    parser.add_argument('-t', '--target_snp', type=str, default='covid_snp',
+        help='target snp on which to perform analysis')
+    parser.add_argument('-c', '--chr', type=int, default=None,
+                        help='chromosome selection')
     parser.add_argument('-o', '--output_dir', type=str, default='.',
                         help='directory to save output files')
-    parser.add_argument('-u', '--unit', type=str, default='snp',
-                        help='unit to perform analysis')
-    parser.add_argument('-g', '--gen_ls', type=str, default='0/1',
-                        help='list of genotypes to perform specific analysis on')
-    parser.add_argument('-p', '--phen_ls', type=str, default='Mild-Severe',
-                        help='list of phenotypes to perform specific analysis on')
-    parser.add_argument('-f', '--list_snp_file', type=str, default=f'{ABS_PATH}/finemapped',
-                        help='list of snp to verify validity of snp list we got')
+    parser.add_argument('-n', '--n_min', type=int, default=5,
+                        help='number of minimum replicates')
+    parser.add_argument('-p', '--pval', type=float, default=0.05,
+                        help='pval threshold')
+    parser.add_argument('-z', '--zscore', type=int, default=3,
+        help='zscore value for outlier detection')
     args = parser.parse_args()
+    print('## Statistical analysis. \nThe arguments are: ', vars(args), '\n')
     main(**vars(args))
 
 
-def joint_model():
-    pass
-    # TODO: Joint model
-    # transform to normal distrib inverse norm)
-    # INVERSE NORMALISATION
-    # JOIN MODEL
-    # > anova(vsx2_linear,vsx2_interaction, test = "F")
-    # Analysis of Variance Table
-    #
-    # Model 1: invnorm(ONL) ~ standing_height_0_0 + weight_0_0 + age_when_attended_assessment_centre_0_0 +
-    # genetic_sexuses_datacoding_9_0_0 + as.factor(opticalcoherence_tomography_device_id_0_0) +
-    # PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 +
-    # PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 +
-    # PC20 + (vsx2_locus) + rs375435
-    # Model 2: invnorm(ONL) ~ standing_height_0_0 + weight_0_0 + age_when_attended_assessment_centre_0_0 +
-    # genetic_sexuses_datacoding_9_0_0 + as.factor(opticalcoherence_tomography_device_id_0_0) +
-    # PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 +
-    # PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 +
-    # PC20 + (vsx2_locus) * rs375435
-    # Res.Df RSS Df Sum of Sq F Pr(>F)
-    # 1 31061 29341
-    # 2 31054 29314 7 27.003 4.0866 0.0001714 ***
-    # ---
-    # Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# TODO: Joint model
+# transform to normal distrib inverse norm)
+# INVERSE NORMALISATION
+# JOIN MODEL
+# > anova(vsx2_linear,vsx2_interaction, test = "F")
+# Analysis of Variance Table
+#
+# Model 1: invnorm(ONL) ~ standing_height_0_0 + weight_0_0 + age_when_attended_assessment_centre_0_0 +
+# genetic_sexuses_datacoding_9_0_0 + as.factor(opticalcoherence_tomography_device_id_0_0) +
+# PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 +
+# PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 +
+# PC20 + (vsx2_locus) + rs375435
+# Model 2: invnorm(ONL) ~ standing_height_0_0 + weight_0_0 + age_when_attended_assessment_centre_0_0 +
+# genetic_sexuses_datacoding_9_0_0 + as.factor(opticalcoherence_tomography_device_id_0_0) +
+# PC1 + PC2 + PC3 + PC4 + PC5 + PC6 + PC7 + PC8 + PC9 + PC10 +
+# PC11 + PC12 + PC13 + PC14 + PC15 + PC16 + PC17 + PC18 + PC19 +
+# PC20 + (vsx2_locus) * rs375435
+# Res.Df RSS Df Sum of Sq F Pr(>F)
+# 1 31061 29341
+# 2 31054 29314 7 27.003 4.0866 0.0001714 ***
+# ---
+# Signif. codes: 0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
-    # lm(medianlog ~ snp * clinical, data)
-    # lm(invnorm(medianlog) ~ snp + clinical + snp * clinical, data)
-    # lm(invnorm(median_log_hap) ~ allele * clinical , haplotype_data)
-
-
+# lm(medianlog ~ snp * clinical, data)
+# lm(invnorm(medianlog) ~ snp + clinical + snp * clinical, data)
+# lm(invnorm(median_log_hap) ~ allele * clinical , haplotype_data)
 
 
 
