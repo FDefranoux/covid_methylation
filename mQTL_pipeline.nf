@@ -1,35 +1,42 @@
 #!/usr/bin/env nextflow
-
-params.outdir = "$baseDir/covid_snp_all_updated_Summer_2022"
-// params.basecall = "$baseDir/base_called_from_bam_files/covid_snps_finemapped/gcc000*.txt"
-params.basecall = "$baseDir/base_called_from_bam_files/covid_snps_updated_summer2022/gcc008*.txt"
-params.nanopolish= "/hps/nobackup/birney/projects/gel_methylation/nanopolish/gcc008*.tsv.gz"
+nextflow.enable.dsl = 2
+params.title = "covid_snp_all_updated_Summer_2022"
+// params.basecall = "$baseDir/base_called_from_bam_files/covid_snps_finemapped/gcc008*.txt"
+params.basecall = "$baseDir/base_called_from_bam_files/covid_snps_updated_summer2022/gcc*.txt"
+params.nanopolish= "/hps/nobackup/birney/projects/gel_methylation/nanopolish/gcc*.tsv.gz"
 params.snp_type = "covid_snp"
-// params.snp_list = "$baseDir/base_called_from_bam_files/control_snp_finemapped"
+params.db_name = "$params.title" + ".db"
+params.outdir = "$baseDir/$params.title"
 
-// Channel creation
-// nano_files = Channel.fromPath(params.nanopolish, checkIfExists:true)
-// basecall_files = Channel.fromPath(params.basecall, checkIfExists:true)
 
-Channel.fromFilePairs([params.basecall, params.nanopolish], flat:true).set {file_pairs}
-// .ifEmpty( error 'ERROR: No corresponding files !')
-println file_pairs
+workflow {
+        file_pairs = Channel.fromFilePairs([params.basecall, params.nanopolish], flat:true)
+        (file_filt, res1) = bamnanoFiltering(file_pairs)
+        file_filt = file_filt.collect()
+        db = gatherFiletoDB(file_filt, "median_datas")
+        // region_ch = Channel.of(1..24)
+        region_list = file('List_region.txt').readLines()
+        region_ch = Channel.from(region_list)
+        (region_files, res2) = Analysis_cpg_snp(db, region_ch)
+        region_files = region_files.collect()
+        UpdateDB(region_files, "stat_datas")
+        SaveLog(res1.collect(), res2.collect())
+}
 
 process bamnanoFiltering {
-  tag "Filtering"
-  publishDir "$params.outdir/filtering"
+  tag "Filtering $name"
+  publishDir "$params.outdir/filtering", mode: 'copy', overwrite: false
   executor 'lsf'
-  memory { 10.GB * task.attempt }
+  memory { 100.GB * task.attempt }
   errorStrategy { task.exitStatus == 130 ? 'retry' : 'terminate' }
   maxRetries 3
 
   input:
-    set name, val(nano), val(bam) from file_pairs
+    tuple val(name), val(nano), val(bam)
 
   output:
-    path "Filtered_nano_bam_files_*" into all_filt
-    // path "gcc*_readnames.temp"
-    // path "gcc*_greped.txt"
+    file("Filtered_nano_bam_files_*") optional true
+    stdout()
 
   """
   echo $name
@@ -40,60 +47,82 @@ process bamnanoFiltering {
   """
 }
 
-process gatherFiltered {
-  tag "Concat_files"
-  publishDir "$params.outdir"
+process gatherFiletoDB {
+  tag "Concatenating files"
+  publishDir "$params.outdir", mode: 'copy', overwrite: false
   executor 'lsf'
-  memory 1.GB
+  memory 10.GB
 
   input:
-    file('*') from all_filt.collect()
+    file("Filtered_nano_bam_files_*")
+    val(table_name)
 
   output:
-    path "Filtered_nano_bam_files_all.csv"
+    file("*.db")
 
   """
-  grep . * | head -n1 > Filtered_nano_bam_files_all.csv
-  tail -n+2 -q Filtered_nano_bam_files_* >> Filtered_nano_bam_files_all.csv
+  grep . -h Filtered_nano_bam_files_* | head -n1 > All_files_temp.csv
+  tail -n+2 -q * >> All_files_temp.csv
+  (echo .separator ,; echo .import All_files_temp.csv $table_name) | sqlite3 $params.db_name
   """
 }
 
-process SplitChr{
-  tag "SplitChr"
-  publishDir "$params.outdir/per_chr"
+process Analysis_cpg_snp{
+  tag "Analysis of cpg/snp association $select"
+  publishDir "$params.outdir/stats", mode: 'copy', overwrite: false
   executor 'lsf'
-  memory { 1.GB * task.attempt }
+  memory { 200.GB * task.attempt }
   errorStrategy { task.exitStatus == 130 ? 'retry' : 'terminate' }
   maxRetries 3
 
   input:
-    "Filtered_nano_bam_files_all.csv"
+    file("$params.db_name")
+    val(select)
 
   output:
-    "Filtered_nano_bam_files_chr_*.csv"
+    file("Results_stats_*.csv") optional true
+    stdout()
 
   """
-  bash split_filter.sh "Filtered_nano_bam_files_all.csv" .
+  python3 $baseDir/cpg_snp_analysis.py $params.outdir/$params.db_name -s $select
+  """
+
+}
+
+process UpdateDB {
+  tag "Concatenating files"
+  publishDir "$params.outdir", mode: 'copy', overwrite: false
+  executor 'lsf'
+  memory 1.GB
+
+  input:
+    file("Results_stats_*.csv")
+    val(table_name)
+
+  output:
+    file("$params.db_name") optional true
+
+  """
+  grep . -h Results_stats_* | head -n1 > All_files_temp.csv
+  tail -n+2 -q * >> All_files_temp.csv
+  (echo .separator ,; echo .import All_files_temp.csv $table_name) | sqlite3 $params.db_name
   """
 }
 
+process SaveLog {
+  tag "Saving Logs"
+  publishDir "$params.outdir"
+  memory 1.GB
 
-// workflow {
-//   Channel.fromFilePairs([params.basecall, params.nanopolish], flat:true)
-//     .set {file_pairs}
-//     .ifEmpty( error 'ERROR: No corresponding files !')
-//   bamnanoFiltering(file_pairs) | gatherFiltered(file_all)
-//
-// }
-// cut -f3 $bam > "${name}_readnames.temp"
-// zcat $nano | grep -f "${name}_readnames.temp" > "${name}_greped.txt"
-// echo "Not recognized read_name number:"
-// grep -v -f "${name}_greped.txt" "${name}_readnames.temp" | uniq | wc -l
-// cut -f12,13,14,15,16,17,18,19,20 "${name}_greped.txt" > "${name}_extracols1.txt"
-// echo "cut good"
-// sed "/^[[:space:]]*\$/d" "${name}_extracols.txt" > "${name}_extracols2.txt"
-// echo "blou"
-// grep -v -f "${name}_extracols2.txt" "${name}_greped.txt" > "${name}_new.txt"
-// #mv "${name}_new.txt" "${name}_greped.txt"
-// echo "number of row with extra col: "
-// wc -l ${name}_extracols2.txt
+  input:
+    val(res1)
+    val(res2)
+
+  output:
+    file("Log_file.txt") optional true
+
+  exec:
+    log_file = file("$params.outdir/Log_file.txt")
+    log_file.text = res1
+    log_file.append(res2)
+}
