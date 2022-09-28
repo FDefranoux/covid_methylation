@@ -1,4 +1,5 @@
 import sys
+from os.path import join
 import numpy as np
 import pandas as pd
 import socket
@@ -10,11 +11,13 @@ else:
     PATH_UTILS = '/nfs/research/birney/users/fanny/Utils'
     ABS_PATH = '/nfs/research/birney/users/fanny/covid_nanopore'
 sys.path.insert(0, PATH_UTILS)
-from utils_plots import save_plot_report
+from utils import save_plot_report, load_csv_sql
 import seaborn as sns
 import matplotlib.pyplot as plt
 from bioinfokit import visuz
 import sqlite3
+import argparse
+
 
 
 def genomic_info_plot(chr, min, max, db, mark_ls=[], legend_type='color', df_measure=pd.DataFrame(), xmeasure='', ymeasure=''):
@@ -123,13 +126,20 @@ def lower_annotation_cpg(df):
 
 
 
-def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, annot=True, finemap_dist=500000, snp_list=[], n_site=2, format_xaxis=True, save=False, out_dir='', title_supp=''):
+def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, annot=True, finemap_dist=1000000, snp_list=[], n_site=2, format_xaxis=True, save=False, out_dir='', title_supp=''):
 
     stat = stat.copy()
     stat[['CHR', 'POS']] = stat[xvar].str.split(':', expand=True)[[0, 1]].astype(int)
     stat['CHR'] = stat['CHR'].astype('category')
-    stat['minus_log10'] = -np.log10(stat[pval_col].astype(float))
+    stat[pval_col] = stat[pval_col].astype(float)
+    print('Nan in minus_log_10', stat[stat[pval_col].isna()].shape)
+    stat.loc[(stat[pval_col] > 0) & (np.isinf(stat[pval_col]) == False), 'minus_log10'] = -np.log10(stat.loc[(stat[pval_col] > 0) & (np.isinf(stat[pval_col]) == False), pval_col].astype(float))
+    stat.loc[(stat[pval_col] < 0) | (np.isinf(stat[pval_col])), 'minus_log10'] = None
+    # stat['minus_log10'] = -np.log10(stat[pval_col].astype(float))
+    # stat['minus_log10'] = pd.Series(np.where(((stat[pval_col] > 0) & (np.isinf(stat[pval_col]) == False)), -(np.log10(stat[pval_col])), None), index=stat.index)
+    print('Nan in minus_log_10', stat[stat['minus_log10'].isna()].shape)
     pval_cutoff = -np.log10(pval_cutoff)
+
     stat.sort_values('CHR', inplace=True)
 
     # Selection best snp
@@ -138,7 +148,7 @@ def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, annot=True, finemap_di
     else:   # by finemapping
         best_cpg = finemapping(stat[pval_cutoff < stat['minus_log10']], pval_col=pval_col, dist_bp=finemap_dist, group='CHR')['cpg'].unique()
 
-    print(f'{xvar} ABOVE CUTOFF ({-np.log10(pval_cutoff/stat["cpg"].nunique())}) {title_supp}: {best_cpg}\n', stat.loc[stat[xvar].isin(best_cpg)].to_markdown())
+    print(f'{xvar} ABOVE CUTOFF ({pval_cutoff}) {title_supp}: {stat[pval_cutoff < stat["minus_log10"]].shape[0]} - best:{best_cpg}\n') #stat.loc[stat[xvar].isin(best_cpg)].to_markdown())
 
     # If position annotation (by vertical lines)
     if snp_list:
@@ -156,14 +166,10 @@ def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, annot=True, finemap_di
             if not snp_df.empty:
                 snp_df.loc[snp_df['CHR'] == chr, 'new_xvar'] = snp_df.loc[snp_df['CHR'] == chr, 'POS'] - stat.loc[stat['CHR'] == chr, 'POS'].min() + last_pos + 1
             last_pos = stat.loc[stat['CHR'] == chr, 'new_xvar'].max()
-        print(stat[stat['new_xvar'] <= 0])
-        stat['new_xvar'] = np.log10(stat['new_xvar'])
+        # stat['new_xvar'] = np.log10(stat['new_xvar'])
 
-        if not snp_df.empty:
-            print(snp_df[snp_df['new_xvar'] <= 0])
-            snp_df['new_xvar'] = pd.Series(np.where(snp_df['new_xvar'] > 0, np.log10(snp_df['new_xvar']), 1), index=snp_df.index)
-            print(snp_df[snp_df['new_xvar'] <= 0])
-            # print(last_pos)
+        # if not snp_df.empty:
+        #     snp_df['new_xvar'] = pd.Series(np.where(snp_df['new_xvar'] > 0, np.log10(snp_df['new_xvar']), 1), index=snp_df.index)
     else:
         if not snp_df.empty:
             blou = stat[['CHR', 'POS', xvar]].append(snp_df[['CHR', 'POS', xvar]]).sort_values(['CHR', 'POS']).reset_index(drop=True)
@@ -184,7 +190,7 @@ def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, annot=True, finemap_di
         for snp in snp_df.sort_values(xvar)[xvar].unique():
             plt.axvline(x=snp, alpha=0.5)
     if format_xaxis:
-        g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).median()[xvar].unique(),
+        g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).mean()[xvar].unique(),
             xticklabels=stat['CHR'].unique())
     else:
         g.set(xlabel="CHR", xticks=stat.groupby(['CHR']).last()[xvar].unique(),
@@ -204,39 +210,52 @@ def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, annot=True, finemap_di
     return g
 
 
-def stats_plots(db):
-    # TODO: Add SQL calling
-    df = pd.read_csv('All_files_temp.csv') # TEMP:  Example file
+def stats_plots(file, file_cpg_snp='', outdir='.'):
     # Basic plots to print out
-    df_cpg_lists = pd.DataFrame()
-    for _, row in df[['stat', 'variable', 'data', ]].drop_duplicates().T.iteritems():
-        df_stat = df[(df['stat'] == row['stat']) & (df['variable'] == row['variable']) & (df['data'] == row['data'])]
-        cutoff = 0.05 / df_stat['cpg'].nunique()
+    if file_cpg_snp:
+        df_cpg_lists = pd.read_table('file_cpg_snp')
+    else:
+        df_cpg_lists = pd.DataFrame()
 
-        # Save list of cpfs above the cutoff
-        df_cpg_lists['_'.join(row)] = df_stat[df_stat['p-val'] < cutoff].reset_index()['cpg']
-        finemapped_cpgs = finemapping(df_stat, 'p-val', group='CHR', dist_bp=10000000)[['cpg', 'p-val']]
-        print(finemapped_cpgs)
-        df_cpg_lists.to_csv('CpGs_significantly_associated.csv', index=False)
+    # df = load_csv_sql(file=file, sql_query='SELECT cpg,snp,stat_test,var,data,coeff,pval FROM results', table_name='results').drop_duplicates()
+    stats_index = load_csv_sql(file=file, sql_query='SELECT DISTINCT stat_test,var,data FROM results', table_name='results').drop_duplicates()
+    stats_index.columns = [ col.replace('DISTINCT', '') for col in stats_index.columns]
+
+    # df_stat = df[(df['stat'] == row['stat']) & (df['variable'] == row['variable']) & (df['data'] == row['data'])]
+    for _, row in stats_index.head(3).drop_duplicates().T.iteritems():
+        if not row['data'] == '""':
+            stat_query = f"SELECT cpg,snp,stat_test,var,data,coeff,pval FROM results WHERE stat_test IS \"{row['stat_test']}\" AND var IS \"{row['var']}\" AND data IS \"{row['data']}\""
+        else:
+            stat_query = f"SELECT cpg,snp,stat_test,var,data,coeff,pval FROM results WHERE stat_test IS \"{row['stat_test']}\" AND var IS \"{row['var']}\" AND data IS \"\""
+
+        df_stat = load_csv_sql(file=file, sql_query=stat_query, table_name='results').drop_duplicates()
+        if row['stat_test'] == 'corr':
+            cutoff = 0.01 / df_stat['cpg'].nunique()
+            print(df_stat.dtypes)
+            # Save list of cpfs above the cutoff
+            df_cpg_lists['_'.join(row)] = df_stat[df_stat['pval'].astype(float) < cutoff].reset_index()['cpg']
+            finemapped_cpgs = finemapping(df_stat, 'pval', group='CHR', dist_bp=10000000)[['cpg', 'pval']]
 
 
-        # Finemapping per SNP
-        # QUESTION: Is double finemapping to select the right SNPs to analyse is useful?
-        # QUESTION: How else?
-        list_snp = list(finemapping(finemapping(df_stat, 'p-val', group='snp_bis', dist_bp=10000000),'p-val',  x='snp_bis', group='CHR', dist_bp=10000000)['snp_bis'].unique())
+            # Finemapping per SNP
+            # QUESTION: Is double finemapping to select the right SNPs to analyse is useful?
+            # QUESTION: How else?
+            # list_snp = list(finemapping(finemapping(df_stat, 'pval', group='snp_bis', dist_bp=10000000),'pval',  x='snp_bis', group='CHR', dist_bp=10000000)['snp_bis'].unique())
 
-        # Plots
-        pval_plot_new(df_stat, 'cpg', 'p-val', snp_list=list_snp, pval_cutoff=cutoff,format_xaxis=False, out_dir='', title_supp='_'.join(row), save=True)
-        pval_plot_new(df_stat, 'cpg', 'p-val', pval_cutoff=cutoff,format_xaxis=True, out_dir='', title_supp='_'.join(row), snp_list=list_snp, save=True)
-        visuz.marker.mhat(df=df_stat.copy(), chr='chr',pv='p-val', show=False, gwas_sign_line=True, gwasp=0.05 / df_stat['cpg'].nunique(), markernames=False, markeridcol='cpg')
+            # Plots
+            pval_plot_new(df_stat, 'cpg', 'pval', snp_list=[], pval_cutoff=cutoff,format_xaxis=False, out_dir=outdir, title_supp='_'.join(row)+'_noformat', save=True, annot='top', n_site=1)
+            pval_plot_new(df_stat, 'cpg', 'pval', pval_cutoff=cutoff,format_xaxis=True, out_dir=outdir, title_supp='_'.join(row)+ '_format', snp_list=[], save=True, annot='top', n_site=1)
+            # visuz.marker.mhat(df=df_stat.copy(), chr='CHR',pv='pval', show=False, gwas_sign_line=True, gwasp=0.05 / df_stat['cpg'].nunique(), markernames=False, markeridcol='cpg')
 
+    df_cpg_lists.to_csv(join(outdir, f'CpGs_significantly_associated.csv'), index=False)
     # Other way of having the finemapped cpgs in a table
-    # finemapped_cpgs_df = df.groupby(['stat', 'data', 'variable']).apply(lambda x: list(finemapping(x, 'p-val', group='CHR')['cpg'].unique())).reset_index()
+    finemapped_cpgs_df = df_stat.groupby(['stat_test', 'data', 'var']).apply(lambda x: list(finemapping(x, 'pval', group='CHR')['cpg'].unique())).reset_index()
+    finemapped_cpgs_df.T.to_csv(join(outdir, 'Globar_associated_CpGs.csv'), index=False)
 
-    return list_snp
+    if snp_list: return snp_list
 
 
-def distance_plots(list_snp, db):
+def distance_plots(list_snp, db, outdir='.'):
     # TEMP:  Example file2:
     df = pd.read_csv('All_files_temp.csv')
     # TODO: Add SQL calling
@@ -254,7 +273,7 @@ def distance_plots(list_snp, db):
     # TODO: Same with p-val?
     # for snp in list_snp:
     #     g = sns.relplot(data=df[df[snp_col] == snp], x='log_distance', y='log_lik_ratio', col='Genotype', hue='haplotype', row='phenotype')
-    #     save_plot_report(f'Log_Distance_plot_{snp}.jpg', g,  bbox_inches='tight', dpi=100)
+    #     save_plot_report(join(outdir, f'Log_Distance_plot_{snp}.jpg'), g,  bbox_inches='tight', dpi=100)
 
     # Plots the region info plot
     # TODO: Change selection of the regions?
@@ -264,7 +283,7 @@ def distance_plots(list_snp, db):
         for chr in set(chr_snp):
             max_pos, min_pos = max(markers_ls), min(markers_ls)
             fig_region = genomic_info_plot(15, min_pos, max_pos, db, mark_ls=markers_ls, legend_type='color', df_measure=df[(df['start'] >= min_pos - 100000) & (df['start'] <= (max_pos + 100000))], xmeasure='start', ymeasure='minuslog10')
-            save_plot_report(f'GenomicInfo_plot_{chr}', fig_region)
+            save_plot_report(join(outdir, f'GenomicInfo_plot_{chr}'), fig_region)
     except:
         pass
 
@@ -286,11 +305,13 @@ def join_snps(df, snp_file):
     return join
 
 
-def main(db_file):
-    db_file = '/home/fanny/Work/EBI/covid_nanopore/new_covid_snp/covid_snp_March2022.db' # TEMP
-    db = sqlite3.connect(db_file)
-    list_snp = stats_plots(db)
-    distance_plots(list_snp, db)
+def main(file='', outdir='.'):
+    # db = sqlite3.connect(db_file)
+    # db=''
+    file = '/tmp/e4a8d171/codon-login/homes/fanny/covid_nanopore/Test_res_all.csv'
+    outdir = '/tmp/e4a8d171/codon-login/homes/fanny/covid_nanopore/'
+    list_snp = stats_plots(file, outdir=outdir)
+    # distance_plots(list_snp, db, outdir=outdir)
 
 
 # TODO: Add table with SNP - CPG link --> join_snps(df, snp_file)
@@ -306,4 +327,12 @@ def main(db_file):
 
 
 if __name__ == '__main__':
-    main()
+    # db_file = '/home/fanny/Work/EBI/covid_nanopore/new_covid_snp/covid_snp_March2022.db'
+    file ='f' # TEMP
+    parser = argparse.ArgumentParser(description='STEP3 - General plots')
+    parser.add_argument('-f', '--file', type=str, help='Database file', default=file)
+    parser.add_argument('-o', '--outdir', type=str, help='output directory', default='.')
+
+    args = parser.parse_args()
+    print('The arguments are: ', vars(args), '\n')
+    main(**vars(args))

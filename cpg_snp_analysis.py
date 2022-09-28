@@ -5,6 +5,7 @@ import socket
 import numpy as np
 import sqlite3
 host = socket.gethostname()
+import subprocess
 if 'Fanny' in host:
     PATH_UTILS = '/home/fanny/Work/EBI/Utils'
     ABS_PATH = '/home/fanny/Work/EBI/covid_nanopore'
@@ -78,7 +79,7 @@ def stat_test(df, cpg, snp, measure, test_args, target_snp='covid_snp', n_min=5,
                 # print(df)
 
 # MAIN
-def main(file_db, target_snp='covid_snp', select=None, measure='log_lik_ratio', output_dir='.', n_min=5, pval=0.05, zscore=3, multiprocess=False):
+def main(file, target_snp='covid_snp', select=None, measure='log_lik_ratio', output_dir='.', n_min=5, pval=0.05, zscore=3, multiprocess=False):
     start_time = time.time()
 
     # List of tests to do:
@@ -109,7 +110,6 @@ def main(file_db, target_snp='covid_snp', select=None, measure='log_lik_ratio', 
         os.makedirs(output_dir)
 
     # Opening file
-
     if select:
         # Getting dictionnary or arguments
         select = select.replace('=', '-')
@@ -118,16 +118,41 @@ def main(file_db, target_snp='covid_snp', select=None, measure='log_lik_ratio', 
         sql_query = "SELECT * FROM median_datas"
         if select_dict:
             sql_query += " WHERE "
-            value_ls = [str(key) + " IS '" + str(val) + "'" if not '%' in val else str(key) + " LIKE '" + str(val) + "'" for key, val in select_dict.items()]
+            value_ls = [str(key) + " IS '" + str(val) + "'" if not '%' in val else str(key) + " LIKE \"" + str(val) + "\"" for key, val in select_dict.items()]
             sql_query += " AND ".join(value_ls)
             sql_query = sql_query.replace('snp', target_snp)
+            sql_query += ";"
             print(f'selection: {sql_query}')
 
-    db = sqlite3.connect(file_db)
-    all_df = pd.read_sql(sql_query, con=db)
-    db.close()
+    # Loading the DF
+    if file[-3:] == '.db':
+        print('DB MODE')
+        db = sqlite3.connect(file)
+        all_df = pd.read_sql(sql_query, con=db)
+        db.close()
+    elif file[-4:] == '.csv':
+        print('CSV MODE')
+        command = f"sqlite3 :memory: -cmd '.mode csv' -cmd '.import {file} median_datas' \ '{sql_query}'"
+        print(command)
+        res = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        res_out = res.stdout.read().decode('utf8')
+        res_out = res_out.split('\n')
+        res_out = [row.split(',') for row in res_out if row != '']
+        all_df = pd.DataFrame(res_out)
+        print(all_df.shape)
 
-    print(all_df['chromosome'].unique())
+        # Adding columns
+        if not all_df.empty:
+            header = subprocess.Popen(f"head -n1 {file}", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            header_ls = header.stdout.read().decode('utf8')[:-1].split(',')
+            print(all_df.head(2).to_markdown())
+            all_df.columns = header_ls
+        else:
+            print('DF EMPTY')
+    else:
+        all_df = pd.DataFrame()
+
+    print(all_df.head(2))
 
     if not all_df.empty:
         # OUTLIERS DETECTION
@@ -169,7 +194,7 @@ def main(file_db, target_snp='covid_snp', select=None, measure='log_lik_ratio', 
         result_ls = [ res for res in result_ls if res != None]
         # select = '_'.join([str(select) + 'select' for select in [test_select, chr_select, snp_select] if select != None])
         select = select.replace('/', '')
-        with open(os.path.join(output_dir, f'Results_stats_{select}.csv'), 'w') as f:
+        with open(os.path.join(output_dir, f'Results_stats_select_{select}.csv'), 'w') as f:
             write = csv.writer(f)
             write.writerow(fields)
             write.writerows(result_ls)
@@ -177,13 +202,13 @@ def main(file_db, target_snp='covid_snp', select=None, measure='log_lik_ratio', 
         print('Complete time', time.time() - start_time)
 
     else:
-        print(f'Dataframe is empty !')
+        print(f'Dataframe is empty ! {file} -- {select}')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='STEP2 - Pipeline for mQTLs'
         + ' - Statisques (Spearman correlation and MannWhitney test) on specific datasets')
-    parser.add_argument('file_db', type=str, help='filtered db')
+    parser.add_argument('file', type=str, help='filtered db')
     parser.add_argument('-t', '--target_snp', type=str, default='covid_snp',
         help='target snp on which to perform analysis')
     parser.add_argument('-s', '--select', type=str, default=None,

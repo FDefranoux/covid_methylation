@@ -1,27 +1,46 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl = 2
-params.title = "covid_snp_all_updated_Summer_2022"
-// params.basecall = "$baseDir/base_called_from_bam_files/covid_snps_finemapped/gcc008*.txt"
-params.basecall = "$baseDir/base_called_from_bam_files/covid_snps_updated_summer2022/gcc*.txt"
-params.nanopolish= "/hps/nobackup/birney/projects/gel_methylation/nanopolish/gcc*.tsv.gz"
-params.snp_type = "covid_snp"
-params.db_name = "$params.title" + ".db"
-params.outdir = "$baseDir/$params.title"
 
+// General parameters
+params.nanopolish = "/hps/nobackup/birney/projects/gel_methylation/nanopolish/gcc*.tsv.gz"
+
+// Parameters list of snp specific
+params.title = "covid_snp_all_updated_Summer_2022"
+params.basecall = "$baseDir/base_called_from_bam_files/covid_snps_updated_summer2022/gcc*.txt"
+params.snp_type = "covid_snp"
+params.outdir = "$baseDir/$params.title"
+params.list_regions = "List_region.txt"
+
+// Parameters step specific
+params.jump_filtering = "True"
+// TODO: Make work the split per chr (currently going directly to analysis)
+params.splitCHR = "False"
+params.medianfile_basename = "$baseDir/covid_snp_all_updated_Summer_2022/All_filtered_nanobamfiles.csv"
 
 workflow {
-        file_pairs = Channel.fromFilePairs([params.basecall, params.nanopolish], flat:true)
-        (file_filt, res1) = bamnanoFiltering(file_pairs)
-        file_filt = file_filt.collect()
-        db = gatherFiletoDB(file_filt, "median_datas")
-        // region_ch = Channel.of(1..24)
-        region_list = file('List_region.txt').readLines()
-        region_ch = Channel.from(region_list)
-        (region_files, res2) = Analysis_cpg_snp(db, region_ch)
-        region_files = region_files.collect()
-        UpdateDB(region_files, "stat_datas")
-        SaveLog(res1.collect(), res2.collect())
-}
+          // Recuperation and filtering of the bam/nanopolish files
+          file_pairs = Channel.fromFilePairs([params.basecall, params.nanopolish], flat:true)
+          (file_filt, out1) = bamnanoFiltering(file_pairs)
+          file_filt = file_filt.collect()
+          gatherFile(file_filt)
+
+          // Adjustment of the regions on which to perform stat analysis (more jobs less time)
+          // chr_files = SplitPerCHR(params.medianfile_basename)
+          // TODO: Find a way to create the channel with precedent files (with splitchr files output) #important
+          create_channel = {params.medianfile_basename.replaceAll(/\..+/, "") + '_chr_' + it.replaceFirst(/snp-/, "").replaceAll(/:.+/, "") + '.csv'}
+          selected_region = file(params.list_regions)
+          region_list = selected_region.readLines()
+          // println chr_files
+
+
+          // Statistical analysis
+          (region_files, out2) = Analysis_cpg_snp( Channel.from(region_list.collect(create_channel)), Channel.from(region_list))
+          region_files = region_files.collect()
+          GatherStats(region_files)
+
+          // Recuperation of output on the various pipeline works
+          // SaveLog(out1.collect(), out2.collect())
+          }
 
 process bamnanoFiltering {
   tag "Filtering $name"
@@ -30,6 +49,8 @@ process bamnanoFiltering {
   memory { 100.GB * task.attempt }
   errorStrategy { task.exitStatus == 130 ? 'retry' : 'terminate' }
   maxRetries 3
+  when:
+    params.jump_filtering == "False"
 
   input:
     tuple val(name), val(nano), val(bam)
@@ -47,67 +68,93 @@ process bamnanoFiltering {
   """
 }
 
-process gatherFiletoDB {
+process gatherFile{
   tag "Concatenating files"
-  publishDir "$params.outdir", mode: 'copy', overwrite: false
+  publishDir "$params.outdir/per_chr", mode: 'copy', overwrite: false
   executor 'lsf'
   memory 10.GB
+  // when:
+  //   params.jump_filtering == "False"
 
   input:
     file("Filtered_nano_bam_files_*")
-    val(table_name)
 
   output:
-    file("*.db")
+    file("$params.medianfile_basename")
 
   """
-  grep . -h Filtered_nano_bam_files_* | head -n1 > All_files_temp.csv
-  tail -n+2 -q * >> All_files_temp.csv
-  (echo .separator ,; echo .import All_files_temp.csv $table_name) | sqlite3 $params.db_name
+  grep . -h Filtered_nano_bam_files_* | head -n1 > $params.medianfile_basename
+  tail -n+2 -q * >> $params.medianfile_basename
+  bash $baseDir/split_filter.sh $params.medianfile_basename ./
+  """
+  // (echo .separator ,; echo .import All_files_temp.csv $table_name) | sqlite3 $params.db_name
+}
+
+process SplitPerCHR{
+  tag "Split per chr"
+  publishDir "$params.outdir", mode: 'copy', overwrite: false
+  executor 'lsf'
+  memory { 5.GB }
+  when:
+    params.splitCHR == "True"
+
+  input:
+    file("$params.medianfile_basename")
+
+  output:
+    file("*.csv")
+
+  """
+  bash $baseDir/split_filter.sh $params.medianfile_basename ./
   """
 }
 
 process Analysis_cpg_snp{
-  tag "Analysis of cpg/snp association $select"
-  publishDir "$params.outdir/stats", mode: 'copy', overwrite: false
+  tag "Analysis of cpg/snp association $file_select $select"
+  publishDir "$params.outdir/stats_nodb", mode: 'copy', overwrite: false
   executor 'lsf'
   memory { 200.GB * task.attempt }
-  errorStrategy { task.exitStatus == 130 ? 'retry' : 'terminate' }
+  errorStrategy { task.exitStatus in [130] ? 'retry' : 'terminate' } // ,255
   maxRetries 3
 
   input:
-    file("$params.db_name")
+    val(file_select)
     val(select)
 
   output:
-    file("Results_stats_*.csv") optional true
+    file("Results_stats_select_*.csv") optional true
     stdout()
 
+  // readarray -d: -t splitNoIFS<<<"$select"
+  // chr="\${splitNoIFS[0]:4:3}"
   """
-  python3 $baseDir/cpg_snp_analysis.py $params.outdir/$params.db_name -s $select
+  python3 $baseDir/cpg_snp_analysis.py $file_select -s $select
   """
-
 }
 
-process UpdateDB {
+process GatherStats {
   tag "Concatenating files"
   publishDir "$params.outdir", mode: 'copy', overwrite: false
   executor 'lsf'
   memory 1.GB
 
   input:
-    file("Results_stats_*.csv")
-    val(table_name)
+    file("*")
 
   output:
-    file("$params.db_name") optional true
+    file("Results_stats_all.csv")
 
   """
-  grep . -h Results_stats_* | head -n1 > All_files_temp.csv
-  tail -n+2 -q * >> All_files_temp.csv
-  (echo .separator ,; echo .import All_files_temp.csv $table_name) | sqlite3 $params.db_name
+  grep . -h * | head -n1 > Results_stats_all.csv
+  tail -n+2 -q * >> Results_stats_all.csv
   """
+  // (echo .separator ,; echo .import Results_stats_all.csv $table_name) | sqlite3 $params.db_name
 }
+
+// TODO Add a split per statistique type ??
+// TODO Add ploting script ?
+// TODO Add copy of the config - region ls etc into the dir ?
+
 
 process SaveLog {
   tag "Saving Logs"

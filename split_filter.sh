@@ -1,5 +1,5 @@
 for chr in `seq 1 24`; do
-	blou="^${chr},"
+	blou=",${chr},"
 	base=$(basename $1)
 	base=${base::-4}
 	outdir="${2}/"
