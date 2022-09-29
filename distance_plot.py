@@ -20,10 +20,11 @@ import argparse
 
 
 
-def genomic_info_plot(chr, min, max, db, mark_ls=[], legend_type='color', df_measure=pd.DataFrame(), xmeasure='', ymeasure=''):
+def genomic_info_plot(file, chr, min, max, mark_ls=[], legend_type='color', df_measure=pd.DataFrame(), xmeasure='', ymeasure=''):
 
     # Recuperation of the genomic info
-    info_df = pd.read_sql(f"SELECT seqid, source, type, start, end, attributes FROM hsa_ensembl_annot WHERE seqid IS {chr} AND start > {min} AND end < {max}", con=db)
+    # info_df = pd.read_sql(f"SELECT seqid, source, type, start, end, attributes FROM hsa_ensembl_annot WHERE seqid IS {chr} AND start > {min} AND end < {max}", con=db)
+    info_df = load_csv_sql(file=file, sql_query='SELECT cpg,snp,stat_test,var,data,coeff,pval FROM results', table_name='results').drop_duplicates()
     info_df = info_df[info_df['source'] != 'GRCh38'].copy()
     print(info_df.shape)
 
@@ -210,19 +211,16 @@ def pval_plot_new(stat, xvar, pval_col, pval_cutoff=0.01, annot=True, finemap_di
     return g
 
 
-def stats_plots(file, file_cpg_snp='', outdir='.'):
-    # Basic plots to print out
-    if file_cpg_snp:
-        df_cpg_lists = pd.read_table('file_cpg_snp')
-    else:
-        df_cpg_lists = pd.DataFrame()
+def stats_plots(file, outdir='.', finemapping=True):
+    # Results of finemapped
+    df_cpg_lists = pd.DataFrame()
 
     # df = load_csv_sql(file=file, sql_query='SELECT cpg,snp,stat_test,var,data,coeff,pval FROM results', table_name='results').drop_duplicates()
     stats_index = load_csv_sql(file=file, sql_query='SELECT DISTINCT stat_test,var,data FROM results', table_name='results').drop_duplicates()
-    stats_index.columns = [ col.replace('DISTINCT', '') for col in stats_index.columns]
+    stats_index.columns = [col.replace('DISTINCT', '') for col in stats_index.columns]
 
     # df_stat = df[(df['stat'] == row['stat']) & (df['variable'] == row['variable']) & (df['data'] == row['data'])]
-    for _, row in stats_index.head(3).drop_duplicates().T.iteritems():
+    for _, row in stats_index.drop_duplicates().T.iteritems():
         if not row['data'] == '""':
             stat_query = f"SELECT cpg,snp,stat_test,var,data,coeff,pval FROM results WHERE stat_test IS \"{row['stat_test']}\" AND var IS \"{row['var']}\" AND data IS \"{row['data']}\""
         else:
@@ -231,48 +229,60 @@ def stats_plots(file, file_cpg_snp='', outdir='.'):
         df_stat = load_csv_sql(file=file, sql_query=stat_query, table_name='results').drop_duplicates()
         if row['stat_test'] == 'corr':
             cutoff = 0.01 / df_stat['cpg'].nunique()
-            print(df_stat.dtypes)
-            # Save list of cpfs above the cutoff
-            df_cpg_lists['_'.join(row)] = df_stat[df_stat['pval'].astype(float) < cutoff].reset_index()['cpg']
-            finemapped_cpgs = finemapping(df_stat, 'pval', group='CHR', dist_bp=10000000)[['cpg', 'pval']]
 
+            # Finemapping and saving the results
+            df_stat['cpg_snp'] = df_stat['cpg'] + '/' + df_stat['cpg']
+            df_stat.set_index('cpg_snp', inplace=True)
+            finemapped_df = finemapping(df_stat, 'pval', group='CHR', dist_bp=10000000)[['cpg', 'snp', 'pval']]
 
-            # Finemapping per SNP
-            # QUESTION: Is double finemapping to select the right SNPs to analyse is useful?
-            # QUESTION: How else?
-            # list_snp = list(finemapping(finemapping(df_stat, 'pval', group='snp_bis', dist_bp=10000000),'pval',  x='snp_bis', group='CHR', dist_bp=10000000)['snp_bis'].unique())
+            if finemapping:
+                df_cpg_lists.loc['_'.join(row)] = finemapped_df['pval']
+            else:
+                df_cpg_lists['_'.join(row)] = df_stat[df_stat['pval'].astype(float) < cutoff]['pval']
+
+            # QUESTION: How to select SNPs ?
+            # METHOD1:Double finemapping to select the right SNPs?
+            # snp_df = finemapping(finemapping(df_stat, 'pval', group='snp', dist_bp=10000000),'pval',  x='snp', group='CHR', dist_bp=10000000)
+            # list_snp = list(snp_df['snp_bis'].unique())
+
+            # METHOD2: Simple finemapping per couple of cpg_snp most representative per CHR
+            list_snp = finemapped_df['snp']
 
             # Plots
-            pval_plot_new(df_stat, 'cpg', 'pval', snp_list=[], pval_cutoff=cutoff,format_xaxis=False, out_dir=outdir, title_supp='_'.join(row)+'_noformat', save=True, annot='top', n_site=1)
-            pval_plot_new(df_stat, 'cpg', 'pval', pval_cutoff=cutoff,format_xaxis=True, out_dir=outdir, title_supp='_'.join(row)+ '_format', snp_list=[], save=True, annot='top', n_site=1)
+            # pval_plot_new(df_stat, 'cpg', 'pval', snp_list=[], pval_cutoff=cutoff,format_xaxis=False, out_dir=outdir, title_supp='_'.join(row)+'_noformat', save=True, annot='top', n_site=1)
+            pval_plot_new(df_stat, 'cpg', 'pval', pval_cutoff=cutoff, format_xaxis=True, out_dir=outdir, title_supp='_'.join(row)+ '_format', snp_list=[], save=True, annot='top', n_site=1)
+            pval_plot_new(df_stat, 'cpg', 'pval', pval_cutoff=cutoff, format_xaxis=True, out_dir=outdir, title_supp='_'.join(row)+ '_format', snp_list=list_snp, save=True, annot='top', n_site=1)
             # visuz.marker.mhat(df=df_stat.copy(), chr='CHR',pv='pval', show=False, gwas_sign_line=True, gwasp=0.05 / df_stat['cpg'].nunique(), markernames=False, markeridcol='cpg')
 
-    df_cpg_lists.to_csv(join(outdir, f'CpGs_significantly_associated.csv'), index=False)
-    # Other way of having the finemapped cpgs in a table
-    finemapped_cpgs_df = df_stat.groupby(['stat_test', 'data', 'var']).apply(lambda x: list(finemapping(x, 'pval', group='CHR')['cpg'].unique())).reset_index()
-    finemapped_cpgs_df.T.to_csv(join(outdir, 'Globar_associated_CpGs.csv'), index=False)
+    df_cpg_lists.to_csv(join(outdir, 'CpGsSNPs_significantly_associated.csv'), index=False)
 
-    if snp_list: return snp_list
+    # Other way of having the finemapped cpgs in a table (only when opening the entire stat file)
+    # finemapped_cpgs_df = df_stat.groupby(['stat_test', 'data', 'var']).apply(lambda x: list(finemapping(x, 'pval', group='CHR')['cpg'].unique())).reset_index()
+    # finemapped_cpgs_df.T.to_csv(join(outdir, 'Globar_associated_CpGs.csv'), index=False)
+
+    return list_snp
 
 
-def distance_plots(list_snp, db, outdir='.'):
-    # TEMP:  Example file2:
-    df = pd.read_csv('All_files_temp.csv')
+def distance_plots(file_med='', file_stat='', list_snp=[], file_info='', outdir='.'):
     # TODO: Add SQL calling
     # TODO: Join the SNPs? df = join_snps(df, snp_file)
-    try:
-        snp_col = df.filter(regex='[Ss][Nn][Pp]').columns[0]   # TEMP
-        df[f'pos_{snp_col}'] = df[snp_col].str.split(':', expand=True)[1]
-        df['pos_cpg'] = df['cpg'].str.split(':', expand=True)[1]
-        df['distance_cpg_snp'] = df['pos_cpg'].astype(float) - df[f'pos_{snp_col}'].astype(float)
-        df['log_distance'] = np.log10(abs(df['distance_cpg_snp']))
-    except:
-        pass
+
+    for file in [file_med, file_stat]:
+        for snp in list_snp:
+            stat_query = f"SELECT * FROM results WHERE snp IS \"{snp}\""
+            df = load_csv_sql(file=file, sql_query=stat_query, table_name='results').drop_duplicates()
+            try:
+                df['pos_snp'] = df['snp'].str.split(':', expand=True)[1]
+                df['pos_cpg'] = df['cpg'].str.split(':', expand=True)[1]
+                df['distance_cpg_snp'] = df['pos_cpg'].astype(float) - df['pos_snp'].astype(float)
+                df['log_distance'] = np.log10(abs(df['distance_cpg_snp']))
+            except Exception as err:
+                print(f'ERROR with snp {snp}', err)
 
     # TODO: Distance plot with SNPs of interest
     # TODO: Same with p-val?
     # for snp in list_snp:
-    #     g = sns.relplot(data=df[df[snp_col] == snp], x='log_distance', y='log_lik_ratio', col='Genotype', hue='haplotype', row='phenotype')
+    #     g = sns.relplot(data=df[df['snp'] == snp], x='log_distance', y='log_lik_ratio', col='Genotype', hue='haplotype', row='phenotype')
     #     save_plot_report(join(outdir, f'Log_Distance_plot_{snp}.jpg'), g,  bbox_inches='tight', dpi=100)
 
     # Plots the region info plot
@@ -282,10 +292,12 @@ def distance_plots(list_snp, db, outdir='.'):
         chr_snp = [int(str.split(':')[0]) for str in list_snp]
         for chr in set(chr_snp):
             max_pos, min_pos = max(markers_ls), min(markers_ls)
-            fig_region = genomic_info_plot(15, min_pos, max_pos, db, mark_ls=markers_ls, legend_type='color', df_measure=df[(df['start'] >= min_pos - 100000) & (df['start'] <= (max_pos + 100000))], xmeasure='start', ymeasure='minuslog10')
+            fig_region = genomic_info_plot(file_info, 15, min_pos, max_pos, mark_ls=markers_ls, legend_type='color', df_measure=df[(df['start'] >= min_pos - 100000) & (df['start'] <= (max_pos + 100000))], xmeasure='start', ymeasure='minuslog10')
             save_plot_report(join(outdir, f'GenomicInfo_plot_{chr}'), fig_region)
     except:
         pass
+
+    return
 
 
 def join_snps(df, snp_file):
@@ -305,13 +317,12 @@ def join_snps(df, snp_file):
     return join
 
 
-def main(file='', outdir='.'):
-    # db = sqlite3.connect(db_file)
-    # db=''
-    file = '/tmp/e4a8d171/codon-login/homes/fanny/covid_nanopore/Test_res_all.csv'
-    outdir = '/tmp/e4a8d171/codon-login/homes/fanny/covid_nanopore/'
-    list_snp = stats_plots(file, outdir=outdir)
-    # distance_plots(list_snp, db, outdir=outdir)
+def main(file_stat='', file_med='', outdir='.', file_info=''):
+    if file_stat:
+        list_snp = stats_plots(file_stat, outdir=outdir, finemapping=True)
+    # if (list_snp) & (file_info):
+    #     distance_plots(file_med=file_med, file_stat=file_stat, list_snp=list_snp, file_info=file_info, outdir=outdir)
+
 
 
 # TODO: Add table with SNP - CPG link --> join_snps(df, snp_file)
@@ -328,9 +339,10 @@ def main(file='', outdir='.'):
 
 if __name__ == '__main__':
     # db_file = '/home/fanny/Work/EBI/covid_nanopore/new_covid_snp/covid_snp_March2022.db'
-    file ='f' # TEMP
     parser = argparse.ArgumentParser(description='STEP3 - General plots')
-    parser.add_argument('-f', '--file', type=str, help='Database file', default=file)
+    parser.add_argument('-s', '--file_stat', type=str, help='File with stat results')
+    parser.add_argument('-i', '--file_info', type=str, help='File with Genomic informations')
+    parser.add_argument('-i', '--file_med', type=str, help='File containing medians')
     parser.add_argument('-o', '--outdir', type=str, help='output directory', default='.')
 
     args = parser.parse_args()
